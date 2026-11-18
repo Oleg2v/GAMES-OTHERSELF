@@ -46,7 +46,7 @@ The input drivers wait inside cover and possess at a safe margin within the unch
 
 ## Deployment and remaining validation
 
-The production bundle passed the local static staging check at `http://127.0.0.1:4183/GAMES-OTHERSELF/`, including a direct `?lang=en` visit, manual Hebrew selection, URL update and reload retaining Hebrew. See [DEPLOYMENT.md](DEPLOYMENT.md) for the current publication status. A successful local subpath check is not evidence that the public GitHub Pages URL is already available.
+The production bundle passed the local static staging check at `http://127.0.0.1:4183/GAMES-OTHERSELF/`, including a direct `?lang=en` visit, manual Hebrew selection, URL update and reload retaining Hebrew. [GitHub Actions run 44255305018](https://github.com/Oleg2v/GAMES-OTHERSELF/actions/runs/44255305018) subsequently deployed commit `81d5d7d` successfully to [the public game](https://oleg2v.github.io/GAMES-OTHERSELF/). Direct public-site browser verification remains limited by this cloud environment's outbound network policy; see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 Physical phones, Safari and Firefox remain untested. Representative desktop/mobile performance, first-time-player pacing and balance, native-Hebrew review and subjective audio review still require their respective devices or people. Keyboard focus, RTL, reduced motion and control sizing were checked; this visual stealth game has no nonvisual world-navigation mode or screen-reader/accessibility certification. Authored assets and the finished episode flow do not establish exact visual parity with the supplied reference.
 

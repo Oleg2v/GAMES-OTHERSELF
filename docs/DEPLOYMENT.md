@@ -18,6 +18,8 @@ Verify the final site by its full repository path, including script/style/font/G
 
 ## Publication status
 
-Source code and the workflow have been pushed to `main`. GitHub completed the build job, but its deployment job reports `Get Pages site failed: Not Found`: Pages has not yet been enabled for this repository. The managed cloud network currently blocks the GitHub API needed to enable it programmatically.
+The game is published at **[https://oleg2v.github.io/GAMES-OTHERSELF/](https://oleg2v.github.io/GAMES-OTHERSELF/)**.
 
-The repository owner can open [Settings → Pages](https://github.com/Oleg2v/GAMES-OTHERSELF/settings/pages) and select **Build and deployment → Source → GitHub Actions**. After that, rerun the publishing workflow or push the next commit to `main`. The source and generated artifact are already prepared; no Kikkey DNS changes are required. Public publication is not claimed until the deployment succeeds.
+After the repository owner enabled GitHub Actions as the Pages source, [workflow run 44255305018](https://github.com/Oleg2v/GAMES-OTHERSELF/actions/runs/44255305018) successfully built and deployed commit `81d5d7d` on `main`. The deployment returned the public URL above.
+
+The production build passed the local subpath browser check described in [QA.md](QA.md). Direct checks of the public site from this cloud environment are blocked by its outbound network policy before the request reaches GitHub Pages. Publication is confirmed by the successful GitHub deployment; a live public browser check is not claimed.

@@ -46,4 +46,4 @@ The practiced automated route is roughly 100–150 seconds of simulation; the 10
 
 Possible next episode: a wind-harvesting pier with the same two roles and rescued gliders as environmental storytellers. It is outside this build's scope.
 
-The isolated GitHub Pages deployment is described in [deployment instructions](docs/DEPLOYMENT.md). No existing Kikkey site routes, DNS, analytics or outbound messages are changed. Post-game contact buttons only open the existing Kikkey email/WhatsApp destinations.
+**[Play OTHERSELF](https://oleg2v.github.io/GAMES-OTHERSELF/)** on GitHub Pages. The deployment and verification status are described in [deployment instructions](docs/DEPLOYMENT.md). No existing Kikkey site routes, DNS, analytics or outbound messages are changed. Post-game contact buttons only open the existing Kikkey email/WhatsApp destinations.
