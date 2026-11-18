@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as World from './engine.js';
 const { ROOMS, getTarget, getInteraction, getHeight } = World;
+const MULTILEVEL=()=>ROOMS.some(room=>Array.isArray(room.platforms));
 
 const clamp = THREE.MathUtils.clamp;
 const damp = THREE.MathUtils.damp;
@@ -78,23 +79,35 @@ export async function createScene(container, options = {}) {
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 2); textures.add(t); return t;
   }
   const agedMetal = surfaceTexture('steel'), oxidized = surfaceTexture('rust');
+  const pbr={};
+  try{
+    const textureLoader=new THREE.TextureLoader();
+    await Promise.all(['teal-panel','copper-tread','wet-concrete','leaf','glass-grime'].map(async name=>{
+      pbr[name]={};await Promise.all((name==='glass-grime'?['normal','roughness']:['albedo','normal','roughness']).map(async map=>{
+        const t=await textureLoader.loadAsync(`${import.meta.env.BASE_URL}assets/textures/v2/${name}-${map}.webp`);
+        t.colorSpace=map==='albedo'?THREE.SRGBColorSpace:THREE.NoColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());textures.add(t);pbr[name][map]=t;
+      }));
+    }));
+  }catch(error){destroy();throw new Error('Unable to load station materials. Please retry.',{cause:error});}
+  const textured=(name,strength=.65)=>({map:pbr[name].albedo,normalMap:pbr[name].normal,roughnessMap:pbr[name].roughness,normalScale:new THREE.Vector2(strength,strength),roughness:1});
   function mat(color, props = {}) { const m = new THREE.MeshStandardMaterial({ color, roughness: .7, metalness: .2, ...props }); materials.add(m); return m; }
   const m = {
-    steel: mat(PALETTE.steel, { map: agedMetal, bumpMap: grain, bumpScale: .045, metalness: .7, roughness: .34 }),
-    dark: mat(PALETTE.dark, { metalness: .75, roughness: .38 }),
-    rust: mat(PALETTE.rust, { map: oxidized, bumpMap: grain, bumpScale: .07 }),
-    concrete: mat(0x526363, { bumpMap: grain, bumpScale: .1 }),
+    steel: mat(0xe2e7dd, { ...textured('teal-panel'), metalness: .32 }),
+    dark: mat(0x223038, { metalness: .18, roughness: .76 }),
+    rust: mat(0xd9c4a5, { ...textured('copper-tread',.8),metalness:.62 }),
+    concrete: mat(0xc0cbc1, { ...textured('wet-concrete',.8),metalness:0 }),
     ivory: mat(PALETTE.ivory, { metalness: .22, roughness: .34 }),
     amber: mat(PALETTE.amber, { emissive: 0xff9e37, emissiveIntensity: 2.5, roughness: .3 }),
-    dimAmber: mat(0xbf8051, { emissive: 0xb96b24, emissiveIntensity: .55 }),
+    dimAmber: mat(0xbf8051, { emissive: 0xb96b24, emissiveIntensity: .24 }),
     cyan: mat(0x9be9da, { emissive: 0x4ab6bc, emissiveIntensity: 1.4 }),
-    glass: mat(0x82bdb2, { transparent: true, opacity: .2, metalness: .7, roughness: .17, depthWrite: false, side: THREE.DoubleSide }),
+    glass: mat(0x99c2b7, { ...textured('glass-grime',.35),transparent: true, opacity: .2, metalness: .15, depthWrite: false, side: THREE.DoubleSide }),
     water: mat(0x18383d, { roughness: .17, metalness: .88 }),
-    leaf: mat(0x356857, { roughness: .65, side: THREE.DoubleSide }),
+    leaf: mat(0xc8d7b8, { ...textured('leaf',.8),metalness:.02, side: THREE.DoubleSide }),
     beam: mat(0xffb36a, { transparent: true, opacity: .04, depthWrite: false, side: THREE.DoubleSide, emissive: 0xe49b43, emissiveIntensity: .8 }),
     blueBeam: mat(0x82d6cc, { transparent: true, opacity: .035, depthWrite: false, side: THREE.DoubleSide, emissive: 0x82d6cc, emissiveIntensity: .7 }),
     red: mat(0xff7051, { emissive: 0xff4325, emissiveIntensity: 1.8 }),
   };
+  for(const material of [m.steel,m.rust,m.concrete])material.userData.worldTile=material===m.concrete?2:1.5;
   function mesh(g, material, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1, parent = scene) {
     const o = new THREE.Mesh(g, material); o.position.set(x, y, z); o.scale.set(sx, sy, sz); o.castShadow = true; o.receiveShadow = true; parent.add(o); return o;
   }
@@ -135,11 +148,11 @@ export async function createScene(container, options = {}) {
     mesh(geo.plane, symbols[kind], x, y, z + .135, .52, .67, 1, p);
     box(p, m.cyan, x, y - .45, z + .15, .3, .035, .03);
   }
-  scene.add(new THREE.HemisphereLight(0x9bd2d1, 0x17292d, 1.6));
-  const sun = new THREE.DirectionalLight(0xadd9d0, 2.7); sun.position.set(0, 15, 8); sun.castShadow = true;
+  scene.add(new THREE.HemisphereLight(0x9bd2d1, 0x17292d, .9));
+  const sun = new THREE.DirectionalLight(0xadd9d0, 3.1); sun.position.set(0, 15, 8); sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024); sun.shadow.camera.left = -23; sun.shadow.camera.right = 23; sun.shadow.camera.top = 18; sun.shadow.camera.bottom = -10; sun.shadow.normalBias = .04;
   scene.add(sun); scene.add(sun.target);
-  const warm = new THREE.DirectionalLight(0xffbb75, 2); warm.position.set(10, 4, -8); scene.add(warm);
+  const warm = new THREE.DirectionalLight(0xffbb75, 1.25); warm.position.set(10,4,6);scene.add(warm);scene.add(warm.target);
   const rim = new THREE.DirectionalLight(0x5faeae, 1.4); rim.position.set(-8, 8, -6); scene.add(rim);
   const roomGroups = [], roomVisuals = [];
   const workerHeads = {}, endingSails = [];
@@ -204,6 +217,10 @@ export async function createScene(container, options = {}) {
       if (Array.isArray(o.material)) return;
       const matrix=inverse.clone().multiply(o.matrixWorld);
       const high=o.geometry.clone().applyMatrix4(matrix), low=(lowGeometry.get(o.geometry)||o.geometry).clone().applyMatrix4(matrix);
+      if(o.material.userData.worldTile)for(const geometry of [high,low]) {
+        const positions=geometry.attributes.position,normals=geometry.attributes.normal,uv=geometry.attributes.uv,tile=o.material.userData.worldTile;
+        for(let i=0;i<positions.count;i++){const nx=Math.abs(normals.getX(i)),ny=Math.abs(normals.getY(i)),nz=Math.abs(normals.getZ(i));uv.setXY(i,(ny>nx&&ny>nz?positions.getX(i):nz>nx?positions.getX(i):positions.getZ(i))/tile,(ny>nx&&ny>nz?positions.getZ(i):positions.getY(i))/tile);}uv.needsUpdate=true;
+      }
       if (!batches.has(o.material)) batches.set(o.material, {high:[],low:[]});
       batches.get(o.material).high.push(high); batches.get(o.material).low.push(low);old.push(o);
     });
@@ -216,24 +233,25 @@ export async function createScene(container, options = {}) {
   }
   function makeRoom(index) {
     const cfg = ROOMS[index], p = new THREE.Group(); scene.add(p); roomGroups.push(p);
-    const length = cfg.length || 36;
+    const length = cfg.length || 36, multilevel=Array.isArray(cfg.platforms);
+    const movingDecks=[];
     const foreground = [], decorative = [], reflections = [];
     const markForeground = (object, min, max) => {
       object.traverse(o => { if(o.isMesh) { o.material = o.material.clone(); materials.add(o.material); o.material.transparent = true; o.material.opacity = 1; o.material.depthWrite = false; } });
       foreground.push({object,min,max}); return object;
     };
-    const cuts = cfg.gaps || [];
+    const cuts = cfg.pits || cfg.gaps || [];
     const floorSegments = []; let cursor = -3.5;
     for (const gap of cuts) { floorSegments.push([cursor,gap.from]); cursor=gap.to; } floorSegments.push([cursor,length+3.5]);
     // A continuous walkable lip, supported above the rain-filled dock.
     for(const [start,end] of floorSegments){
       box(p, m.concrete, (start+end)/2, -.55, -1.25, end-start, .85, 5.5);
-      box(p, m.dark, (start+end)/2, -.05, -.05, end-start, .12, 2.9);
+      box(p, m.dark, (start+end)/2, -.065, -.05, end-start, .12, 2.9);
     }
     for (const gap of cuts) for(const x of [gap.from,gap.to]) {
       box(p,m.rust,x,-.28,.1,.13,.5,2.9); box(p,m.amber,x,.035,.5,.08,.035,.5);
     }
-    for (const ledge of cfg.ledges || []) {
+    for (const ledge of multilevel?[]:cfg.ledges || []) {
       const ramp=ledge.ramp || .5, flat=(ledge.to-ledge.from)-2*ramp;
       box(p,m.steel,(ledge.from+ledge.to)/2,ledge.height/2,.1,Math.max(.1,flat),ledge.height,2.5);
       for(const side of [-1,1]) { const x=side<0?ledge.from+ramp/2:ledge.to-ramp/2; const slope=box(p,m.steel,x,ledge.height/2,.1,Math.hypot(ramp,ledge.height),.08,2.5); slope.rotation.z=-side*Math.atan2(ledge.height,ramp); }
@@ -241,15 +259,53 @@ export async function createScene(container, options = {}) {
       box(p,m.rust,(ledge.from+ledge.to)/2,ledge.height+.02,1.35,Math.max(.1,flat),.04,.05);
     }
     for(const crawl of cfg.crawl || []) {
-      box(p,m.dark,(crawl.from+crawl.to)/2,crawl.clearance+.11,-.05,crawl.to-crawl.from,.22,2.6);
-      box(p,m.rust,(crawl.from+crawl.to)/2,crawl.clearance+.23,1.25,crawl.to-crawl.from,.05,.05);
-      for(const side of [-1,1]){const rise=crawl.clearance+.15;const ramp=box(p,m.steel,side<0?crawl.from-.4:crawl.to+.4,rise/2,-.85,Math.hypot(.8,rise),.07,.7);ramp.rotation.z=-side*Math.atan2(rise,.8);}
+      const base=crawl.y||0, clearance=crawl.clearance;
+      const top=crawl.maxY??base+clearance+.22;
+      box(p,m.steel,(crawl.from+crawl.to)/2,(base+clearance+top)/2,-.05,crawl.to-crawl.from,top-base-clearance,2.6);
+      box(p,m.rust,(crawl.from+crawl.to)/2,base+clearance+.025,1.25,crawl.to-crawl.from,.05,.05);
+      box(p,m.cyan,(crawl.from+crawl.to)/2,base+clearance-.025,.25,Math.min(.55,crawl.to-crawl.from),.025,.12);
+      for(let x=crawl.from+.16;x<crawl.to;x+=.32){box(p,m.dark,x,(base+clearance+top)/2,1.268,.13,Math.max(.1,top-base-clearance-.25),.025);box(p,m.ivory,x,top-.08,1.28,.035,.035,.025);}
+      box(p,m.rust,(crawl.from+crawl.to)/2,top-.06,1.28,crawl.to-crawl.from,.04,.05);
+      for(const x of [crawl.from,crawl.to]) {
+        box(p,m.steel,x,base+clearance+.2,0,.11,.4,2.7);
+        box(p,m.amber,x,base+clearance-.06,1.25,.07,.06,.04);
+      }
+      if(!multilevel)for(const side of [-1,1]){const rise=clearance+.15;const ramp=box(p,m.steel,side<0?crawl.from-.4:crawl.to+.4,rise/2,-.85,Math.hypot(.8,rise),.07,.7);ramp.rotation.z=-side*Math.atan2(rise,.8);}
     }
-    box(p, m.rust, length / 2, -.17, 1.48, length + 3, .28, .18);
+    for(const [from,to] of floorSegments)box(p,m.rust,(from+to)/2,-.17,1.48,to-from,.28,.18);
+    // Platforms and ladders come directly from collision metadata. Back rails
+    // and underside braces keep the walkable front edge unobstructed.
+    for(const platform of cfg.platforms || []) {
+      if(platform.y<=.01)continue;
+      const deck=new THREE.Group();p.add(deck);deck.position.set(platform.from,platform.y,0);
+      const span=platform.to-platform.from, thickness=platform.thickness??.22;
+      if(platform.grate){
+        box(deck,m.rust,span/2,-thickness/2,-1,span,thickness,.13);
+        const tread=[];for(let x=.06;x<span;x+=.2)tread.push([x,-.04,0,.065,.08,2]);instanceBoxes(deck,m.steel,tread);
+      }else{
+        box(deck,m.steel,span/2,-thickness/2,0,span,thickness,2.1);
+        box(deck,m.rust,span/2,.008,0,span,.018,2);
+      }
+      box(deck,m.rust,span/2,-.055,1.05,span,.11,.13);
+      box(deck,m.dimAmber,span/2,.014,1.12,span,.025,.035);
+      const rail=[];for(let x=.12;x<span;x+=1.25)rail.push([x,.53,-1,.045,1.06,.045]);
+      instanceBoxes(deck,m.steel,rail);rod(deck,m.steel,[0,1.06,-1],[span,1.06,-1],.035);
+      for(const x of [.12,span-.12]){box(deck,m.amber,x,.035,1.12,.12,.04,.05);rod(deck,m.steel,[x,-.2,-.8],[x+Math.min(.8,span/2)*(x<span/2?1:-1),-1.1,-.8],.05);}
+      if(platform.activeWhen){movingDecks.push({object:deck,platform});deck.scale.x=.001;}
+    }
+    for(const ladder of cfg.ladders || []) {
+      const ladderGroup=new THREE.Group();p.add(ladderGroup);ladderGroup.position.set(ladder.x,ladder.bottom,-.4);
+      const rise=ladder.top-ladder.bottom;
+      rod(ladderGroup,m.rust,[-.34,0,0],[-.34,rise+.55,0],.055);rod(ladderGroup,m.rust,[.34,0,0],[.34,rise+.55,0],.055);
+      const rungs=[];for(let y=.16;y<rise+.1;y+=.27)rungs.push([0,y,.025,.7,.055,.07]);instanceBoxes(ladderGroup,m.ivory,rungs);
+      for(const y of [0,rise]){box(ladderGroup,m.amber,0,y+.05,.04,.26,.04,.04);box(ladderGroup,m.dark,0,y+.035,.02,.8,.07,.25);}
+      curvePipe(ladderGroup,[[-.34,rise,0],[-.34,rise+.5,0],[-.34,rise+.65,-.2],[-.34,rise+.65,-.45]],.05,m.rust);
+      curvePipe(ladderGroup,[[.34,rise,0],[.34,rise+.5,0],[.34,rise+.65,-.2],[.34,rise+.65,-.45]],.05,m.rust);
+    }
     const slats = [], bolts = [];
-    for (let x = -2; x < length + 3; x += .34) if(!cuts.some(g=>x>g.from&&x<g.to)) slats.push([x, .015, -.05, .06, .07, 2.8]);
+    for (let x = -2; x < length + 3; x += .34) if(!cuts.some(g=>x>g.from&&x<g.to)) slats.push([x, -.035, -.05, .06, .07, 2.8]);
     instanceBoxes(p, m.steel, slats);
-    for (let x = -1; x < length + 2; x += 1.2) bolts.push([x, -.15, 1.59, .1, .1, .05]);
+    for (let x = -1; x < length + 2; x += 1.2) if(!cuts.some(g=>x>g.from&&x<g.to))bolts.push([x, -.15, 1.59, .1, .1, .05]);
     instanceBoxes(p, m.ivory, bolts);
     // Water and vertical depth are visible under the playable catwalk.
     box(p, m.water, length / 2, -4.6, -4, length + 80, .12, 70);
@@ -276,7 +332,7 @@ export async function createScene(container, options = {}) {
       torus(p, m.rust, x + 1, -1.2, 1.2, .28);
       rod(p, m.rust, [x + 1, -1.2, 1.2], [x + 1, -3.7, 1.2], .19);
       box(p, m.amber, x + .2, -.4, 1.6, .32, .05, .03);
-      const puddle=mesh(geo.plane,wet,x,.065,.75,1.8,.45,1,p);puddle.rotation.x=-Math.PI/2;
+      if(!cuts.some(g=>x+.9>g.from&&x-.9<g.to)){const puddle=mesh(geo.plane,wet,x,.006,.75,1.8,.45,1,p);puddle.rotation.x=-Math.PI/2;}
       const stripe=mesh(geo.plane,reflection,x,-4.5,-2,1.4,7,1,p);stripe.rotation.x=-Math.PI/2;reflections.push(stripe);
     }
     for (let i = 0; i < 3; i++) rod(p, m.dark, [-3, 8.7 + i * .18, -3], [length + 3, 9.4 + i * .2, -3], .027);
@@ -284,11 +340,18 @@ export async function createScene(container, options = {}) {
       const mid=(machine.from+machine.to)/2, h=machine.maxY-machine.minY;
       box(p,m.steel,mid,(machine.minY+machine.maxY)/2,.1,machine.to-machine.from,h,2.6);
       for(const x of [machine.from,machine.to])box(p,m.rust,x,machine.minY/2,-1.1,.1,machine.minY,.1);
-      for(const side of [-1,1]) {const ramp=box(p,m.steel,side<0?machine.from-.4:machine.to+.4,machine.maxY/2,-.8,Math.hypot(.8,machine.maxY),.08,.7);ramp.rotation.z=-side*Math.atan2(machine.maxY,.8);}
+      if(!multilevel)for(const side of [-1,1]) {const ramp=box(p,m.steel,side<0?machine.from-.4:machine.to+.4,machine.maxY/2,-.8,Math.hypot(.8,machine.maxY),.08,.7);ramp.rotation.z=-side*Math.atan2(machine.maxY,.8);}
     }
     // Cover roofs exactly correspond to the stealth simulation's cover intervals.
     (cfg.covers || []).forEach((cover, i) => {
       const from = cover.from ?? cover[0], to = cover.to ?? cover[1], mid = (from + to) / 2;
+      if(multilevel){
+        const base=cover.y||0,h=cover.maxHeight??1.3;
+        box(p,m.steel,mid,base+h/2,-1.35,to-from,h,.2);
+        for(const x of [from,to])box(p,m.rust,x,base+h/2,-.65,.1,h,1.1);
+        box(p,m.cyan,mid,base+h-.12,-1.19,.25,.035,.035);
+        return;
+      }
       if(index===3 && from>=32)return; // Boarding hatch itself shelters the final recess.
       box(p, m.dark, mid, 1.65, -.9, to - from, .22, 2.8);
       box(p, m.steel, mid, 1.5, -1.2, to - from, .12, 2.2);
@@ -304,15 +367,16 @@ export async function createScene(container, options = {}) {
       box(p, m.steel, x, 2, -1.4, .18, 4, .15);
       box(p, m.ivory, x, 2.2, .8, .12, .05, 1.2);
     });
+    const gateHeight=cfg.gateHeight??4.4;
     const gate = new THREE.Group(); p.add(gate); gate.position.set(cfg.gateX ?? 25, 0, -.2);
-    box(gate, m.dark, 0, 2.2, -.8, .2, 4.4, 3.2);
-    for (let y = .3; y < 4.4; y += .42) box(gate, m.steel, .04, y, -.8, .26, .2, 3);
-    box(gate, m.amber, .19, 2.1, .63, .1, 2.8, .06);
-    const latch = box(p, m.rust, (cfg.gateX ?? 25) + .35, 3.8, .65, .5, .13, .2);
-    box(p, m.steel, cfg.gateX ?? 25, 4.6, -.8, 1, .25, 3.8);
-    panel(p, cfg.readerX ?? 20, 1.75, 'hand', .08);
+    box(gate,m.dark,0,gateHeight/2,-.8,.2,gateHeight,3.2);
+    for (let y = .3; y < gateHeight; y += .42) box(gate, m.steel, .04, y, -.8, .26, .2, 3);
+    box(gate,m.amber,.19,gateHeight/2,.63,.07,gateHeight-.4,.06);
+    const latch = box(p, m.rust, (cfg.gateX ?? 25) + .35, gateHeight-.6, .65, .5, .13, .2);
+    box(p, m.steel, cfg.gateX ?? 25, gateHeight+.2, -.8, 1, .25, 3.8);
+    panel(p, cfg.readerX ?? 20, (cfg.readerY||0)+1.45, 'hand', .08);
     const tech = new THREE.Group(); p.add(tech);
-    const consoleX = cfg.consoleX ?? 15;
+    const consoleX = cfg.consoleX ?? 15;tech.position.y=cfg.consoleY||0;
     tech.visible = Number.isFinite(cfg.consoleX);
     box(tech, m.dark, consoleX, .65, -.8, 1.2, 1.3, .7);
     panel(tech, consoleX, 1.55, 'gear', -.3);
@@ -323,7 +387,7 @@ export async function createScene(container, options = {}) {
     rod(bridge, m.steel, [2.3, .2, 1.9], [2.3, 1.3, 1.9], .04);
     rod(bridge, m.steel, [-2.3, 1.3, 1.9], [2.3, 1.3, 1.9], .04);
     bridge.scale.x = .01;
-    bridge.visible = index === 1 || index === 3;
+    bridge.visible = !multilevel && (index === 1 || index === 3);
     bridge.position.set(23.5, 1.8, -.1);
     const ramps = new THREE.Group(); bridge.add(ramps);
     for (const sign of [-1, 1]) { const ramp = box(ramps, m.steel, sign * 3.5, -.8, 1.2, 3.5, .12, 1.4); ramp.rotation.z = -sign * .54; }
@@ -333,7 +397,7 @@ export async function createScene(container, options = {}) {
     const endingLights=[];
     let crate = null, sail = null;
     if (Number.isFinite(cfg.crateX)) {
-      crate = new THREE.Group(); p.add(crate); crate.position.set(cfg.crateX, 0, .25);
+      crate = new THREE.Group(); p.add(crate); crate.position.set(cfg.crateX, cfg.crateY||0, .25);
       box(crate, m.rust, 0, .42, 0, .95, .84, .7);
       box(crate, m.dark, 0, .44, .36, .8, .65, .02);
       for (let i = -.3; i <= .3; i += .15) box(crate, m.ivory, i, .44, .39, .025, .56, .025);
@@ -346,13 +410,19 @@ export async function createScene(container, options = {}) {
     }
     let bell = null;
     if (index === 3) {
-      bell = new THREE.Group(); p.add(bell); bell.position.set(length - 2, 0, 0);
+      bell = new THREE.Group(); p.add(bell); bell.position.set(cfg.bellX??length-2, cfg.bellY||0, 0);
       rod(bell, m.rust, [0, 0, -.5], [0, 4, -.5], .08);
       rod(bell, m.rust, [0, 4, -.5], [-.7, 4, -.5], .07);
       mesh(geo.cone, m.ivory, -.7, 3.6, -.5, .3, .5, .3, bell);
       rod(bell, m.ivory, [-.7, 3.3, -.5], [-.7, 1.3, -.5], .025);
       torus(bell, m.rust, -.7, 1.15, -.5, .16);
       panel(bell, -.7, 2.4, 'bell', -.3);
+    }
+    if(multilevel&&index<3){
+      const y=cfg.exitY||0;
+      for(const z of [-1.1,1.1]){box(p,m.steel,35.8,y+1.2,z,.16,2.4,.16);box(p,m.cyan,35.73,y+1.2,z+.1,.035,2.1,.035);}
+      box(p,m.steel,35.8,y+2.45,0,.24,.17,2.55);
+      const arrowShape=new THREE.Shape();arrowShape.moveTo(-.22,-.12);arrowShape.lineTo(.02,-.12);arrowShape.lineTo(.02,-.24);arrowShape.lineTo(.3,0);arrowShape.lineTo(.02,.24);arrowShape.lineTo(.02,.12);arrowShape.lineTo(-.22,.12);arrowShape.closePath();mesh(ownGeo(new THREE.ShapeGeometry(arrowShape)),m.cyan,35.1,y+1.8,.8,1,1,1,p);
     }
     // Each hall has a different silhouette and visual depth.
     if (index === 0) {
@@ -386,7 +456,7 @@ export async function createScene(container, options = {}) {
       rod(p, m.dark, [7, 4.4, 1.6], [7, 6.4, 1.6], .04);
     } else if (index === 2) {
       for (let x = -2; x < length + 3; x += 5) {
-        const arch = torus(p, m.steel, x, 3, -4.8, 5.8, Math.PI / 2); arch.scale.y = 5.8 * 1.3;
+        const arch = torus(p, m.steel, x, 3, -8.5, 5.8, Math.PI / 2); arch.scale.y = 5.8 * 1.3;
         plant(p, x, 0, -4.2, 2 + (x % 3) * .13);
         curvePipe(p,[[x,.8,-4],[x-.6,2,-4],[x+1,4.4,-4],[x+.3,6,-3.8]],.075,m.leaf);
         for(let leaf=0;leaf<3;leaf++){const shape=new THREE.Shape();shape.moveTo(0,0);shape.bezierCurveTo(-.8,.7,-.55,2.1,0,2.6);shape.bezierCurveTo(.7,1.9,.75,.7,0,0);const lg=ownGeo(new THREE.ShapeGeometry(shape,8));const obj=mesh(lg,m.leaf,x+.5,2+leaf*.8,-3.7,.8,1,1,p);obj.rotation.z=(leaf%2?-.7:.6);rod(p,m.ivory,[x+.5,2+leaf*.8,-3.66],[x+.6,4+leaf*.8,-3.66],.018);}
@@ -439,13 +509,14 @@ export async function createScene(container, options = {}) {
       rod(p, m.rust, [7, -.2, 3.5], [13, -2.6, 7], .075);
     }
     p.visible = index === 0;
-    const ignored = new Set([gate,latch,wheel,bridge,cart,crate,sail,tech,ship,dockShip,windVane,conveyor,...foreground.map(f=>f.object),...reflections]);
+    const ignored = new Set([gate,latch,wheel,bridge,cart,crate,sail,tech,ship,dockShip,windVane,conveyor,...movingDecks.map(d=>d.object),...foreground.map(f=>f.object),...reflections]);
     batchStatic(p, ignored);
     if(dockShip)batchStatic(dockShip);
+    movingDecks.forEach(d=>batchStatic(d.object));
     batchStatic(gate);batchStatic(bridge);batchStatic(tech,new Set([wheel]));batchStatic(ship);
     if(crate)batchStatic(crate);if(bell)batchStatic(bell);if(windVane)batchStatic(windVane);
     if(conveyor)conveyor.children.forEach(bag=>batchStatic(bag));
-    const data = { gate, latch, wheel, bridge, cart, crate, sail, ship, bell, dockShip, endingLights, windVane, conveyor, foreground, reflections, guards: new Map() }; roomVisuals.push(data);
+    const data = { gate, latch, wheel, bridge, cart, crate, sail, ship, bell, dockShip, endingLights, windVane, conveyor, foreground, reflections, movingDecks, items:new Map(), projectiles:new Map(), noiseRings:[], guards: new Map() }; roomVisuals.push(data);
     return data;
   }
   for (let i = 0; i < ROOMS.length; i++) { makeRoom(i); options.onProgress?.(.15 + i * .1); }
@@ -505,6 +576,12 @@ export async function createScene(container, options = {}) {
     return root;
   }
   const nim = character(); scene.add(nim);
+  const menuPlinth=new THREE.Group();scene.add(menuPlinth);menuPlinth.position.set(7.5,0,2.2);menuPlinth.visible=false;
+  box(menuPlinth,m.steel,0,-.12,0,2.4,.24,1.75);
+  box(menuPlinth,m.rust,0,-.035,.88,2.4,.07,.1);
+  for(let x=-1.1;x<=1.15;x+=.2)box(menuPlinth,m.rust,x,.008,0,.045,.025,1.65);
+  for(const x of [-.9,.9])rod(menuPlinth,m.dark,[x,-.2,0],[x,-2.5,-.6],.1);
+  batchStatic(menuPlinth);
   let loadedNim = null, lowNim = null;
   try {
     const loaded = await new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}assets/nim.glb`);
@@ -579,6 +656,30 @@ export async function createScene(container, options = {}) {
   const look = new THREE.Vector3(9, 2.3, 0), currentLook = look.clone();
   let elapsed = 0, lastRoom = -1;
   const sightGeo = ownGeo(new THREE.ConeGeometry(1, 1, 20, 1, true));
+  const visionMaterial=new THREE.MeshBasicMaterial({color:0xf2c181,transparent:true,opacity:.035,depthWrite:false,side:THREE.DoubleSide});materials.add(visionMaterial);
+  const visionEdgeMaterial=new THREE.LineBasicMaterial({color:0xf4ca8d,transparent:true,opacity:.13,depthWrite:false});materials.add(visionEdgeMaterial);
+  function updateVision(state,guard,actor){
+    if(!MULTILEVEL())return;
+    let vision=actor.userData.vision;
+    const segments=24;
+    if(!vision){
+      const positions=new Float32Array(segments*9),edgePositions=new Float32Array((segments+1)*3);
+      const geometry=ownGeo(new THREE.BufferGeometry());geometry.setAttribute('position',new THREE.BufferAttribute(positions,3));
+      const edgeGeometry=ownGeo(new THREE.BufferGeometry());edgeGeometry.setAttribute('position',new THREE.BufferAttribute(edgePositions,3));
+      const mesh=new THREE.Mesh(geometry,visionMaterial),edge=new THREE.Line(edgeGeometry,visionEdgeMaterial);mesh.frustumCulled=edge.frustumCulled=false;roomGroups[state.room].add(mesh,edge);
+      vision={mesh,edge,geometry,edgeGeometry,positions,edgePositions};actor.userData.vision=vision;
+    }
+    const visible=!menuMode&&!ending&&state.controlled!==guard.id&&!guard.recovery;
+    vision.mesh.visible=vision.edge.visible=visible;actor.userData.sight.visible=false;
+    if(!visible)return;
+    const origin={x:guard.x,y:getHeight(state,guard)+1.72,plane:0},half=Math.atan(1.75),direction=guard.facing>0?0:Math.PI,points=[];
+    for(let i=0;i<=segments;i++){
+      const angle=direction-half+(2*half*i/segments),end={x:origin.x+Math.cos(angle)*8,y:origin.y+Math.sin(angle)*8,plane:0};
+      const trace=World.traceRay(state,origin,end);const hit=trace.obstruction||end;points.push(hit);vision.edgePositions.set([hit.x,hit.y,-.25],i*3);
+    }
+    for(let i=0;i<segments;i++)vision.positions.set([origin.x,origin.y,-.25,points[i].x,points[i].y,-.25,points[i+1].x,points[i+1].y,-.25],i*9);
+    vision.geometry.attributes.position.needsUpdate=vision.edgeGeometry.attributes.position.needsUpdate=true;
+  }
   function guardVisual(role) {
     const root = character(role);
     const parts=root.userData;batchStatic(parts.body,new Set([...parts.arms,...parts.legs]));[...parts.arms,...parts.legs].forEach(part=>batchStatic(part));
@@ -595,10 +696,13 @@ export async function createScene(container, options = {}) {
   function animateActor(actor, data, dt, controlled = false, abandoned = false, traversal = {kind:'walk'}) {
     const u = actor.userData;
     const dx = data.x - u.lastX, moving = Math.abs(dx) > .0005;
+    u.speed=dt>0?Math.abs(dx)/dt:0;
+    if(u.wasGrounded===false&&data.grounded===true)u.landing=.15;
+    u.wasGrounded=data.grounded;u.landing=Math.max(0,(u.landing||0)-dt);
     if (moving && dt > 0) u.pace += Math.min(Math.abs(dx), .2) * (u.role === 'nim' ? 7 : 4);
-    actor.position.x = data.x; actor.position.y = 0; actor.position.z = .2;
+    actor.position.x = data.x; actor.position.y = 0; actor.position.z = traversal.kind==='ladder'?-.05:.2;
     const direction = data.facing || 1;
-    const angle = direction > 0 ? 1.12 : -1.12;
+    const angle = traversal.kind==='ladder'?Math.PI:direction>0?1.12:-1.12;
     actor.rotation.y = damp(actor.rotation.y, angle, u.role === 'nim' ? 15 : 8, dt);
     const gait = moving && !reduced ? Math.sin(u.pace) : 0;
     u.body.position.y = Math.abs(gait) * .04;
@@ -612,28 +716,40 @@ export async function createScene(container, options = {}) {
       if(u.arms[0]){u.arms[0].rotation.x=-1.8*touch;u.arms[0].rotation.z=-.65*touch;}
       if(u.arms[1])u.arms[1].rotation.z=.16*touch;
     } else u.arms?.forEach(a=>a.rotation.z=0);
+    if(u.role!=='nim'&&traversal.kind==='ladder'){
+      const cycle=data.y*7.5;u.arms.forEach((arm,i)=>arm.rotation.x=-2.3+Math.sin(cycle+(i?Math.PI:0))*.45);u.legs.forEach((leg,i)=>leg.rotation.x=-.2+Math.sin(cycle+(i?Math.PI:0))*.35);
+    }
     if (u.art) {
       u.crouch=damp(u.crouch||0,traversal.kind==='crouch'?1:0,14,dt);
       u.art.rotation.x=.25*u.crouch;
       const shrink=1-clamp(((traversal.clearance??.95)+.12)/1.45,.6,.8);
       u.art.scale.y=u.art.userData.restScaleY*(1-shrink*u.crouch);
-      u.art.position.y = Math.abs(gait) * .025-.19*u.crouch;
+      u.art.position.y = Math.abs(gait) * .025-.109*u.crouch-Math.sin((u.landing||0)/.15*Math.PI)*.065;
       const bone = name => u.rig?.get(name.replace(/[._]/g,''));
       const pose=(name,x,y=0,z=0)=>{const b=bone(name);if(b)b.rotation.set(b.userData.restRotation.x+x,b.userData.restRotation.y+y,b.userData.restRotation.z+z);};
       const gesture=traversal.kind==='possess'?1:0;
       for(const [side,sign] of [['L',1],['R',-1]]) {
-        pose('leg.'+side,gait*sign*.29+.46*u.crouch);
-        pose('shin.'+side,-.08-Math.max(0,gait*sign)*.21-.57*u.crouch);
-        pose('arm.'+side,-gait*sign*.23-.13-(side==='R'?gesture*.85:0),0,sign*.06);
+        pose('leg.'+side,gait*sign*.29+1.1*u.crouch);
+        pose('shin.'+side,-.08-Math.max(0,gait*sign)*.21-1.65*u.crouch);
+        pose('arm.'+side,-gait*sign*.23-.13-.6*u.crouch-(side==='R'?gesture*.85:0),0,sign*.06);
         pose('forearm.'+side,-.22-gesture*.6);
         pose('hand.'+side,gesture*.35,0,gesture*sign*.16);
       }
       pose('head',-.04+.13*u.crouch,reduced?0:Math.sin(elapsed*.85)*.04,Math.sin(elapsed*.5)*.025);
       if(traversal.kind==='climb') {pose('arm.L',-.8);pose('arm.R',-1.1);}
+      if(traversal.kind==='jump'||traversal.kind==='fall'){
+        const rise=traversal.kind==='jump';pose('leg.L',rise?-.35:.13);pose('leg.R',rise?.35:-.08);pose('shin.L',rise?-.75:-.2);pose('shin.R',rise?-.32:-.1);pose('arm.L',rise?-.5:.15,0,.23);pose('arm.R',rise?-.2:.15,0,-.23);
+      }
+      if(traversal.kind==='ladder'){
+        const cycle=data.y*7.5;pose('arm.L',-2.3+Math.sin(cycle)*.5);pose('arm.R',-2.3-Math.sin(cycle)*.5);pose('forearm.L',-.4);pose('forearm.R',-.4);pose('leg.L',-.3+Math.sin(cycle)*.4);pose('leg.R',-.3-Math.sin(cycle)*.4);pose('shin.L',-.7-Math.sin(cycle)*.3);pose('shin.R',-.7+Math.sin(cycle)*.3);pose('head',-.2);
+      }
+      if(data.heldItem && !data.throwTime && traversal.kind!=='ladder'){pose('arm.R',-.35);pose('forearm.R',-.65);}
+      if(data.throwTime>0){const cast=clamp(data.throwTime/.45,0,1);pose('arm.R',-1.45*cast);pose('forearm.R',-.2);pose('hand.R',.3*cast);}
+
 
     }
     actor.rotation.z = abandoned ? -.9 : 0;
-    if (abandoned) { actor.position.y = .12; actor.scale.setScalar(.82); } else actor.scale.setScalar(1);
+    if (abandoned) { actor.position.y = .12; actor.scale.setScalar(.82); } else actor.scale.setScalar(MULTILEVEL()?(u.role==='nim'?.86:.72):1);
     u.lastX = data.x;
     if (u.signal) {
       const alert = data.alert || 0;
@@ -650,24 +766,96 @@ export async function createScene(container, options = {}) {
       u.sight.rotation.z = 0;
     }
   }
+  const projectileMaterial=mat(0xc9b58c,{metalness:.7,roughness:.32});
+  function makeThrowable(kind){
+    const root=new THREE.Group();
+    if(kind==='can'){
+      mesh(geo.cylinder,m.ivory,0,0,0,.095,.22,.095,root);
+      mesh(geo.cylinder,m.rust,0,-.005,0,.099,.06,.099,root);
+      torus(root,m.dark,0,.114,0,.065).rotation.x=Math.PI/2;
+    }else{
+      const shaft=mesh(geo.cylinder,projectileMaterial,0,0,0,.035,.19,.035,root);shaft.rotation.z=.25;
+      mesh(geo.cylinder,m.rust,0,.095,0,.065,.045,.065,root);
+    }
+    return root;
+  }
+  const heldObjects={bolt:makeThrowable('bolt'),can:makeThrowable('can')};for(const object of Object.values(heldObjects)){nim.add(object);object.visible=false;applyQuality(object);}
+  const aimMaterial=new THREE.MeshBasicMaterial({color:0xf8c886,transparent:true,opacity:.65,depthWrite:false});materials.add(aimMaterial);
+  const aimDots=new THREE.InstancedMesh(geo.sphere,aimMaterial,64);scene.add(aimDots);aimDots.visible=false;aimDots.frustumCulled=false;
+  const aimEnd=torus(scene,m.dimAmber,0,0,0,.24);aimEnd.rotation.x=-Math.PI/2;aimEnd.visible=false;
+  const aimDummy=new THREE.Object3D();
+  function updateProps(state,visual){
+    const rs=state.rooms[state.room];
+    const activeItemIds=new Set((rs.items||[]).map(item=>item.id));
+    for(const [id,object]of visual.items)if(!activeItemIds.has(id))object.visible=false;
+    for(const item of rs.items||[]){
+      let object=visual.items.get(item.id);
+      if(!object){object=makeThrowable(item.kind);roomGroups[state.room].add(object);visual.items.set(item.id,object);applyQuality(object);}
+      object.position.set(item.x,item.y+.14,.4);object.visible=item.available!==false;object.rotation.z=item.kind==='can'?.1:.7;
+    }
+    const activeIds=new Set();
+    for(const projectile of rs.projectiles||[]){
+      activeIds.add(projectile.id);let object=visual.projectiles.get(projectile.id);
+      if(!object){object=makeThrowable(projectile.kind);roomGroups[state.room].add(object);visual.projectiles.set(projectile.id,object);applyQuality(object);}
+      object.visible=true;object.position.set(projectile.x,projectile.y,.42);object.rotation.z=projectile.age*14;
+    }
+    for(const [id,object]of visual.projectiles)if(!activeIds.has(id))object.visible=false;
+    const noises=(rs.noises||[]).filter(n=>n.age<(n.duration??1.2));
+    noises.forEach((noise,i)=>{
+      let ring=visual.noiseRings[i];
+      if(!ring){const material=new THREE.MeshBasicMaterial({color:0xf7bf77,transparent:true,opacity:.7,depthWrite:false});materials.add(material);ring=torus(roomGroups[state.room],material,0,0,0,.25);visual.noiseRings[i]=ring;}
+      const t=clamp(noise.age/(noise.duration??1.2),0,1);ring.visible=true;ring.position.set(noise.x,noise.y+.12,.55);ring.scale.setScalar(1+t*4);ring.material.opacity=(1-t)*.8;
+    });
+    visual.noiseRings.forEach((ring,i)=>{if(i>=noises.length)ring.visible=false;});
+    const held=state.nim.heldItem;for(const object of Object.values(heldObjects))object.visible=false;const heldObject=heldObjects[held?.kind]||heldObjects.bolt;heldObject.visible=!!held&&!state.controlled&&!menuMode&&!ending;
+    if(heldObject.visible){
+      const hand=nim.userData.rig?.get('handR');
+      if(hand){if(heldObject.parent!==hand){heldObject.removeFromParent();hand.add(heldObject);}heldObject.position.set(0,0,.025);heldObject.scale.setScalar(.8);}
+      else{if(heldObject.parent!==nim)nim.add(heldObject);heldObject.position.set(.3,.6,.2);}
+    }
+    const showAim=!!held&&!state.controlled&&!menuMode&&!ending&&state.phase==='playing'&&state.nim.grounded&&!state.nim.ladderId&&(nim.userData.speed||0)<.1;
+    aimDots.visible=aimEnd.visible=false;visual.aimPrediction=null;
+    if(showAim&&World.predictThrow){
+      const prediction=World.predictThrow(state);visual.aimPrediction=prediction;const points=prediction?.points||[];
+      const sampled=points.filter((_,i)=>i%2===0).slice(0,64);aimDots.count=sampled.length;aimDots.visible=sampled.length>1;
+      sampled.forEach((point,i)=>{aimDummy.position.set(point.x,point.y,.52);aimDummy.scale.setScalar(.026);aimDummy.updateMatrix();aimDots.setMatrixAt(i,aimDummy.matrix);});aimDots.instanceMatrix.needsUpdate=true;
+      if(prediction?.impact){aimEnd.visible=true;aimEnd.rotation.x=prediction.impact.kind==='floor'?-Math.PI/2:0;aimEnd.position.set(prediction.impact.x,prediction.impact.y+.025,.4);}
+    }
+  }
+  function traversalKind(entity){return entity.ladderId?'ladder':'walk';}
+  function multilevelHeight(state){return !!ROOMS[state.room].platforms;}
   function update(state, dt = 0) {
     if (disposed || !state) return;
     elapsed += Math.min(dt, .05);
     const room = state.room || 0, rs = state.rooms[room], cfg = ROOMS[room], visual = roomVisuals[room];
-    if (room !== lastRoom) { roomGroups.forEach((g, i) => g.visible = i === room); lastRoom = room; }
+    if (room !== lastRoom) {
+      roomGroups.forEach((g,i)=>g.visible=i===room);
+      const palettes=[{fog:0x183a40,steel:0xd7e9df,concrete:0xb6c5bc,warm:0xffc289},{fog:0x302b2c,steel:0xd6c2a9,concrete:0xbeb2a2,warm:0xff9e57},{fog:0x173b34,steel:0xb9d9c5,concrete:0xadc8b3,warm:0xbde6bb},{fog:0x142838,steel:0xb4c8da,concrete:0xadb8c0,warm:0xffb677}];
+      const palette=palettes[room];scene.background.setHex(palette.fog);scene.fog.color.setHex(palette.fog);m.steel.color.setHex(palette.steel);m.concrete.color.setHex(palette.concrete);warm.color.setHex(palette.warm);
+      for(const [original,cheap] of lowMaterials){cheap.color.copy(original.color);}
+      lastRoom=room;
+    }
     for (const gd of rs.guards) {
       let actor = visual.guards.get(gd.id);
       if (!actor) { actor = guardVisual(gd.role); roomGroups[room].add(actor); visual.guards.set(gd.id, actor); applyQuality(actor); }
       animateActor(actor, gd, dt, state.controlled === gd.id, false, World.getTraversal?.(state,gd));
+      actor.visible=!menuMode;
       actor.position.y += getHeight(state,gd);
+      if(traversalKind(gd)!=='ladder')actor.position.z=-.13;
       if(World.getTraversal?.(state,gd).kind==='service')actor.position.z=-.65;
+      updateVision(state,gd,actor);
     }
     const traversal=World.getTraversal?.(state,state.nim)||{kind:'walk'};
-    traversal.clearance=(cfg.crawl||[]).find(c=>state.nim.x>=c.from&&state.nim.x<=c.to)?.clearance??.95;
+    traversal.clearance=(cfg.crawl||[]).find(c=>state.nim.x>=c.from&&state.nim.x<=c.to&&Math.abs(getHeight(state,state.nim)-(c.y||0))<.2)?.clearance??(MULTILEVEL()?.72:.95);
     animateActor(nim, state.nim, dt, false, !!state.controlled,state.transition?{...traversal,kind:'possess'}:traversal);
     nim.position.y += getHeight(state, state.nim);
+    const niche=(cfg.covers||[]).find(c=>state.nim.x>c.from+.15&&state.nim.x<c.to-.15&&Math.abs(getHeight(state,state.nim)-(c.y||0))<.15);
+    if(niche&&!state.nim.ladderId)nim.position.z=-.55;
+    else if(!state.nim.ladderId)nim.position.z=.42;
+    menuPlinth.visible=menuMode;
     if (menuMode) { nim.position.set(7.5, 0, 2.2); nim.scale.setScalar(2.1); nim.rotation.set(0, -.18 + (reduced ? 0 : Math.sin(elapsed * .3) * .08), 0); }
     if (visual.cart) visual.cart.position.x = rs.cartX ?? 17;
+    updateProps(state,visual);
     const controlled = rs.guards.find(g => g.id === state.controlled);
     const active = controlled || state.nim;
     const target = getTarget(state);
@@ -677,18 +865,19 @@ export async function createScene(container, options = {}) {
     blockedArc.visible=!!showBlocked;blockedLine.visible=!!showBlocked;
     if(showBlocked){const blockY=obstruction.y??1.7;blockedArc.position.set(obstruction.x,blockY,.6);blockedPositions.set([state.nim.x,1.25+getHeight(state,state.nim),.5,obstruction.x,blockY,.5]);blockedGeometry.attributes.position.needsUpdate=true;}
     targetRing.visible = !!target && !state.controlled && !menuMode;
-    if (target) { targetRing.position.set(target.x, 2.4+getHeight(state,target), .85); targetRing.rotation.y = .05; targetRing.scale.setScalar(reduced ? 1 : 1 + Math.sin(elapsed * 3) * .04); }
+    if (target) { targetRing.position.set(target.x, (MULTILEVEL()?1.73:2.4)+getHeight(state,target), .85); targetRing.rotation.y = .05; targetRing.scale.setScalar(reduced ? 1 : 1 + Math.sin(elapsed * 3) * .04); }
     const interaction = getInteraction(state);
     interactionRing.visible = !!interaction && !menuMode;
-    if (interaction) interactionRing.position.set(interaction.x ?? active.x, .08, .2);
+    if (interaction) interactionRing.position.set(interaction.x ?? active.x, (interaction.y??getHeight(state,active))+.08, .2);
     const channel = state.transition || state.channel || state.possession;
     thread.visible = !!channel && !state.controlled;
     if (thread.visible) {
       const tg = rs.guards.find(g => g.id === (channel.targetId || channel.target || channel.id)) || target;
-      if (tg) { threadPositions.set([state.nim.x, 1.25+getHeight(state,state.nim), .5, tg.x, 2.4+getHeight(state,tg), .5]); threadGeo.attributes.position.needsUpdate = true; } else thread.visible = false;
+      if (tg) { threadPositions.set([state.nim.x, 1.25+getHeight(state,state.nim), .5, tg.x, (MULTILEVEL()?1.73:2.4)+getHeight(state,tg), .5]); threadGeo.attributes.position.needsUpdate = true; } else thread.visible = false;
     }
-    visual.gate.position.y = damp(visual.gate.position.y, rs.gateOpen ? 4.6 : 0, 4, dt);
+    visual.gate.position.y = damp(visual.gate.position.y, rs.gateOpen ? (cfg.gateHeight??4.4)+.2 : 0, 4, dt);
     visual.latch.rotation.z = rs.gateOpen ? -Math.PI / 2 : 0;
+    for(const deck of visual.movingDecks){const ready=!!rs[deck.platform.activeWhen];const amount=ready?1:rs.mechanism?.active?rs.mechanism.progress:.001;deck.object.scale.x=Math.max(.001,amount);deck.object.visible=ready||!!rs.mechanism?.active;}
     visual.bridge.scale.x = damp(visual.bridge.scale.x, rs.bridgeOpen ? 1 : .015, 3, dt);
     visual.wheel.rotation.z = (typeof rs.mechanism === 'number' ? rs.mechanism : rs.mechanism?.progress || 0) * Math.PI * 4;
     if (visual.crate) {
@@ -697,20 +886,28 @@ export async function createScene(container, options = {}) {
       visual.wasRescued=!!rs.rescued;
       const flight=elapsed-(visual.rescueTime??elapsed);
       visual.sail.visible=!!rs.rescued&&flight<5;
-      if(rs.rescued){visual.sail.position.set(cfg.crateX+flight*1.5,1.6+Math.sin(Math.min(1,flight/3)*Math.PI/2)*3,-flight*.5);visual.sail.rotation.z=reduced?0:Math.sin(elapsed*3)*.08;}
+      if(rs.rescued){visual.sail.position.set(cfg.crateX+flight*1.5,(cfg.crateY||0)+1.6+Math.sin(Math.min(1,flight/3)*Math.PI/2)*3,-flight*.5);visual.sail.rotation.z=reduced?0:Math.sin(elapsed*3)*.08;}
     }
     const aspect = width / height;
     const portrait = aspect < .8;
-    const viewWidth = portrait ? 10 : aspect < 1.25 ? 18 : 27;
+    let viewWidth = portrait ? 8.2 : aspect < 1.25 ? 16 : 20.5;
+    const aimImpact=visual.aimPrediction?.impact;
+    if(portrait&&aimImpact)viewWidth=Math.max(viewWidth,Math.min(12,Math.abs(aimImpact.x-active.x)+2));
     const distance = viewWidth / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * aspect);
     const visibleHalf = viewWidth * .42;
     const witness=state.phase==='lost'?rs.guards.find(g=>g.id===state.loss?.guardId):null;
-    const focusX=state.phase==='lost'?((state.loss?.x??state.nim.x)+(witness?.x??state.nim.x))/2:active.x+(active.facing||1)*(portrait?1:2.5);
+    const focusX=state.phase==='lost'?((state.loss?.x??state.nim.x)+(witness?.x??state.nim.x))/2:aimImpact?(active.x+aimImpact.x)/2:active.x+(active.facing||1)*(portrait?1:2.5);
     const cx = clamp(focusX, visibleHalf - 1, (cfg.length || 36) - visibleHalf + 1);
-    look.set(cx, portrait ? 2.1 : 2.7, -.7);
+    const activeY=getHeight(state,active);
+    const nearLadder=(cfg.ladders||[]).find(l=>Math.abs(l.x-active.x)<2&&(Math.abs(l.bottom-activeY)<1.6||Math.abs(l.top-activeY)<1.6||active.ladderId===l.id));
+    const frameHeight=viewWidth/aspect;
+    let focusY=activeY+clamp(frameHeight*.1,1.1,1.8);
+    if(nearLadder)focusY=clamp((nearLadder.bottom+nearLadder.top)/2+1.1,focusY-.35,focusY+.35);
+    if(state.phase==='lost')focusY=getHeight(state,state.nim)+1.35;
+    look.set(cx,focusY,-.4);
     currentLook.lerp(look, reduced ? 1 : 1 - Math.exp(-dt * 3.4));
     if (!dt || state.phase==='lost') currentLook.copy(look);
-    camera.position.set(currentLook.x - .7, currentLook.y + distance * .22, distance);
+    camera.position.set(currentLook.x - 1.2, currentLook.y + distance * .13, distance);
     camera.lookAt(currentLook);
     if (menuMode) {
       const portraitMenu = aspect < .8;
@@ -736,29 +933,30 @@ export async function createScene(container, options = {}) {
     drop.visible=false;
     if(room===3&&visual.dockShip) {
       visual.endingLights.forEach(light=>light.visible=!!ending);
-      const time=ending?.time??0;
+      const time=ending?.time??0, boardingY=cfg.bellY||0;
       const departure=ending&&!reduced?Math.max(0,time-5)*1.35:0;
-      visual.dockShip.position.set(departure,ending&&!reduced?Math.max(0,time-5)*.035:0,-departure*.22);
+      visual.dockShip.position.set(departure,boardingY+(ending&&!reduced?Math.max(0,time-5)*.035:0),-departure*.22);
       if(ending) {
         const boarding=clamp(time/1.8,0,1);
-        nim.position.set(33.15+boarding*.9+departure,.42+visual.dockShip.position.y, .5-departure*.22);
-        nim.rotation.set(0,.1,0);nim.scale.setScalar(1);
+        nim.position.set(33.15+boarding*.9+departure,.12+visual.dockShip.position.y, .5-departure*.22);
+        nim.rotation.set(0,.1,0);nim.scale.setScalar(MULTILEVEL()?.86:1);
         const hand=nim.userData.rig?.get('armR');if(hand)hand.rotation.x=-.9*clamp((time-1.5)/1,0,1);
         const head=nim.userData.rig?.get('head');if(head)head.rotation.x=-.1;
         drop.visible=time>=3&&time<=4.2;
-        drop.position.set(34.4+departure,3.2-clamp((time-3)/1.2,0,1)*2.3,.85-departure*.22);
+        drop.position.set(34.4+departure,boardingY+3.2-clamp((time-3)/1.2,0,1)*2.3,.85-departure*.22);
         const endWidth=aspect<.8?4.6:6.8;
         const endDistance=endWidth/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*aspect);
         const settle=reduced?1:clamp(time/1.3,0,1);
         const endX=34+departure;
-        camera.position.lerp(new THREE.Vector3(endX,2.15,endDistance+visual.dockShip.position.z),settle);
-        camera.lookAt(endX,1.7,visual.dockShip.position.z);
-        currentLook.set(endX,1.65,0);
+        camera.position.lerp(new THREE.Vector3(endX,boardingY+2.15,endDistance+visual.dockShip.position.z),settle);
+        camera.lookAt(endX,boardingY+1.7,visual.dockShip.position.z);
+        currentLook.set(endX,boardingY+1.65,0);
         targetRing.visible=interactionRing.visible=thread.visible=blockedArc.visible=blockedLine.visible=false;
       }
     }
     bodyIndicator=state.controlled?{...project(state.nim.x,1+getHeight(state,state.nim)),danger:Math.max(...rs.guards.map(g=>g.alert||0))}:null;
     sun.position.x = currentLook.x - 8; sun.target.position.set(currentLook.x, 0, 0);
+    warm.position.set(currentLook.x-6,currentLook.y+4,7);warm.target.position.set(currentLook.x,currentLook.y,0);
     if (!reduced) {
       rainData.forEach((r, i) => { r.y -= dt * r.speed; r.x -= dt * 2; if (r.y < -3) { r.y = 18; r.x = Math.random() * 65 - 10; } const j = i * 6; rainPositions[j] = r.x; rainPositions[j + 1] = r.y; rainPositions[j + 2] = r.z; rainPositions[j + 3] = r.x + .15; rainPositions[j + 4] = r.y + .65; rainPositions[j + 5] = r.z; });
       rainGeo.attributes.position.needsUpdate = true;

@@ -1,4 +1,5 @@
 import './style.css';
+import './controls.css';
 import '@fontsource/manrope/latin-400.css';
 import '@fontsource/manrope/latin-600.css';
 import '@fontsource/manrope/cyrillic-400.css';
@@ -6,7 +7,7 @@ import '@fontsource/manrope/cyrillic-600.css';
 import '@fontsource/unbounded/latin-500.css';
 import '@fontsource/heebo/hebrew-400.css';
 import '@fontsource/heebo/hebrew-600.css';
-import { createGame, step, action, possess, getTarget, getTargetInfo, getInteraction, serialize, restore, retry, ROOMS, isHidden } from './engine.js';
+import { createGame, step, action, possess, jump, toggleCrouch, useThrowable, getThrowableInfo, getHeight, getTraversal, getTarget, getTargetInfo, getInteraction, serialize, restore, retry, ROOMS, isHidden } from './engine.js';
 import { t, languages } from './i18n.js';
 import { createAudio } from './audio.js';
 
@@ -23,7 +24,11 @@ export async function mount(container) {
   if(!['ru','en','he'].includes(preferences.lang))preferences.lang='ru';
   let game=createGame(), scene, audio=createAudio(), mode='loading', modal=null, lastFocus=null, frame=0, previous=0, accumulator=0, saveClock=0, toastClock=0, toastKey='', destroyed=false;
   let endingTime=null, pausedFrom='game';
-  let saved=read(SAVE), loadError=false, lastRoom=0, lastPhase='playing', hudFingerprint='', input={left:false,right:false};
+  let saved=read(SAVE), loadError=false, lastRoom=0, lastPhase='playing', hudFingerprint='', input={left:false,right:false,up:false,down:false};
+  const heldPointers=new Map(),heldKeys=new Set(),touchCommands=new WeakMap();
+  const directionByCode={KeyA:'left',ArrowLeft:'left',KeyD:'right',ArrowRight:'right',KeyW:'up',ArrowUp:'up',KeyS:'down',ArrowDown:'down'};
+  function syncInput(){for(const direction of Object.keys(input))input[direction]=[...heldKeys].some(code=>directionByCode[code]===direction)||[...heldPointers.values()].includes(direction);}
+  function resetInput(){heldPointers.clear();heldKeys.clear();syncInput();}
   const tr=(key,params)=>t(preferences.lang,key,params);
   container.classList.add('otherself');
   container.innerHTML='<div class="world" aria-hidden="true"></div><div class="vignette"></div><div class="interface"></div><div class="dialog-layer"></div><div class="toast" role="status" aria-live="polite"></div>';
@@ -36,13 +41,16 @@ export async function mount(container) {
   function save(){if(!['game','paused'].includes(mode)||game.phase!=='playing')return;try{const value=serialize(game);localStorage.setItem(SAVE,typeof value==='string'?value:JSON.stringify(value));saved=read(SAVE);}catch{notify('saveError');}}
   function notify(key){toastKey=key;toast.textContent=tr(key);toast.classList.add('visible');toastClock=4;}
   function render(){
+    // Replaced touch buttons lose their capture; physical keys remain held
+    // through room/language renders until their real keyup or an explicit pause.
+    heldPointers.clear();syncInput();
     container.lang=preferences.lang;container.dir=preferences.lang==='he'?'rtl':'ltr';
     container.dataset.mode=mode;scene?.setMenuMode?.(mode==='menu'||mode==='loading');
     if(mode==='loading'||mode==='error'){
       ui.innerHTML=`<header>${logo()}${languageSelect()}</header><section class="load-card"><div class="orbit-mark">◎</div><p class="eyebrow">OTHERSELF</p><h1>${esc(tr(mode==='error'?'error':'loading'))}</h1>${mode==='error'?`<p>${esc(tr(loadError?'error':'contextLost'))}</p>${button('retryLoading','reload','primary','↻')}${button('exit','home','quiet')}`:'<div class="load-line"><span></span></div>'}</section>`;
     }else if(mode==='menu'){
       ui.innerHTML=`<header>${logo()}<div class="header-right"><span class="edition">${esc(tr('episode'))}</span>${languageSelect()}${button(preferences.muted?'mute':'sound','mute','icon-button',preferences.muted?icons.mute:icons.sound)}</div></header>
-      <main class="landing"><div class="landing-copy"><div class="eyebrow"><i></i>${esc(tr('tagline'))}</div><h1 dir="ltr">OTHER<span>SELF</span><sup>01</sup></h1><p class="local-title">${esc(tr('title'))}</p><p class="intro">${esc(tr('intro'))}</p><div class="start-row">${button(saved?'continue':'begin',saved?'continue':'start','primary',icons.play)}<span class="start-note">${esc(tr('subtitle'))}</span></div><div class="menu-secondary">${saved?button('newGame','new','text-button'):''}${button('help','help','text-button')}${button('settings','settings','text-button')}</div></div>
+      <main class="landing"><div class="landing-copy"><div class="eyebrow"><i></i>${esc(tr('tagline'))}</div><h1 dir="ltr">OTHER<span>SELF</span><sup>01</sup></h1><p class="local-title">${esc(tr('title'))}</p><p class="intro">${esc(tr('intro'))}</p><div class="start-row">${button(saved?'continue':'begin',saved?'continue':'start','primary',icons.play)}<span class="start-note">${esc(tr('v2Badge'))}<bdi class="release-version">v2.0</bdi></span></div><div class="menu-secondary">${saved?button('newGame','new','text-button'):''}${button('help','help','text-button')}${button('settings','settings','text-button')}</div></div>
       <div class="scene-caption"><span class="caption-line"></span><span><b>01 / 04</b>${esc(tr('room0'))}</span><span class="coordinates" dir="ltr">N 32° 04′<br>E 34° 46′</span></div></main>
       <footer><span class="footer-label">${esc(tr('demo'))}</span><span class="footer-center"><i></i>${esc(tr('privacy'))}</span>${button('credits','credits','text-button')}</footer>`;
     }else if(mode==='ending'){
@@ -52,8 +60,9 @@ export async function mount(container) {
       <div class="game-objective"><span class="small-label">${esc(tr('objective'))}</span><p data-hud="objective"></p></div>
       <div class="body-status"><span class="status-light"></span><span data-hud="body"></span><small data-hud="safe"></small></div>
       <div class="body-indicator" hidden role="img"><svg viewBox="0 0 40 64" aria-hidden="true"><path class="body-silhouette" d="M20 3c-10 0-13 17-5 21l-2 5-10 15 4 3 9-12-2 16-4 11h6l5-12 3 12h6l-5-17 1-12 8 11 4-4-12-16c8-5 7-21-6-21Z"/><path class="shutter shutter-left" d="M3 3v24h9"/><path class="shutter shutter-right" d="M37 3v24h-9"/></svg><div><span data-hud="body-distance"></span><progress max="2" value="0"></progress></div></div><div class="tutorial-card" data-hud="tutorial"></div><div class="rescue-status"><span aria-hidden="true">⋈</span><span data-hud="rescues"></span></div>
+      <div class="equipment-status"><span class="equipment-icon" aria-hidden="true">◇</span><span data-hud="inventory"></span><span class="elevation" data-hud="elevation"></span></div>
       <div class="context-label" data-hud="context"></div><div class="danger-banner" role="status" data-hud="danger"></div>
-      <div class="game-bottom"><div class="movement" dir="ltr"><button data-move="left" aria-label="${esc(tr('move'))} ←">←</button><button data-move="right" aria-label="${esc(tr('move'))} →">→</button><span><bdi>A / D</bdi></span></div><div class="hint"><span class="small-label">${esc(tr('tip'))}</span><p data-hud="tip"></p></div><div class="actions">${button('action','action','action-button',icons.action)}${button('possess','possess','action-button possession',icons.possess)}</div></div>`;
+      <div class="game-bottom controls-v2"><div class="movement" dir="ltr"><button data-move="up" aria-label="${esc(tr('climbUp'))}" aria-keyshortcuts="W ArrowUp">↑</button><button data-move="left" aria-label="${esc(tr('move'))} ←" aria-keyshortcuts="A ArrowLeft">←</button><button data-move="down" aria-label="${esc(tr('climbDown'))}" aria-keyshortcuts="S ArrowDown">↓</button><button data-move="right" aria-label="${esc(tr('move'))} →" aria-keyshortcuts="D ArrowRight">→</button><span><bdi>W A S D</bdi></span></div><div class="hint"><span class="small-label">${esc(tr('tip'))}</span><p data-hud="tip"></p></div><div class="actions">${button('jump','jump','action-button traversal-button jump-button','↥')}${button('crouch','crouch','action-button traversal-button crouch-button','⌄')}${button('pickupItem','throw','action-button traversal-button throw-button','◇')}${button('action','action','action-button interact-button',icons.action)}${button('possess','possess','action-button possession',icons.possess)}</div></div>`;
       hudFingerprint='';updateHUD();
     }
     renderModal();
@@ -61,7 +70,7 @@ export async function mount(container) {
   function updateBodyIndicator(){
     const el=ui.querySelector('.body-indicator');if(!el)return;
     const room=game.rooms[game.room],host=room.guards.find(g=>g.id===game.controlled);
-    const point=scene?.project(game.nim.x,1);
+    const point=scene?.project(game.nim.x,getHeight(game,game.nim)+1);
     const danger=Math.max(0,...room.guards.filter(g=>g.id!==game.controlled).map(g=>g.alert||0));
     el.hidden=!host||(!danger&&point?.visible);if(el.hidden)return;
     const distance=Math.round(Math.abs(host.x-game.nim.x));
@@ -73,17 +82,24 @@ export async function mount(container) {
   }
   function updateHUD(){
     if(mode!=='game'&&mode!=='paused')return;
-    const room=game.rooms[game.room],controlled=room.guards.find(g=>g.id===game.controlled),interaction=getInteraction(game),target=getTarget(game),targetInfo=getTargetInfo(game);
+    const room=game.rooms[game.room],controlled=room.guards.find(g=>g.id===game.controlled),interaction=getInteraction(game),target=getTarget(game),targetInfo=getTargetInfo(game),throwable=getThrowableInfo(game),traversal=getTraversal(game);
     const rescueCount=game.rooms.filter(r=>r.rescued).length;
     const danger=Math.max(0,...room.guards.filter(g=>g.id!==game.controlled).map(g=>Number(g.alert)||0));
-    const fingerprint=JSON.stringify([game.room,game.controlled,interaction?.key,target?.id,targetInfo?.reason,rescueCount,Math.round(danger*10),preferences.lang,room.gateOpen,room.bridgeOpen,isHidden(game)]);
+    container.dataset.alert=danger>.05?'true':'false';
+    const fingerprint=JSON.stringify([game.room,game.controlled,interaction?.key,target?.id,targetInfo?.reason,rescueCount,Math.round(danger*10),preferences.lang,room.gateOpen,room.bridgeOpen,isHidden(game),game.nim.crouching,game.nim.heldItem,game.nim.ladderId,throwable?.key,throwable?.enabled,traversal.kind,Math.floor((controlled||game.nim).x*2),Math.round(traversal.height*10),game.milestones]);
     if(fingerprint===hudFingerprint)return;hudFingerprint=fingerprint;
     const set=(key,text)=>{const el=ui.querySelector(`[data-hud="${key}"]`);if(el){el.textContent=text;if(key==='room')el.title=text;}};
     set('room',tr(`room${game.room}`));set('objective',tr(`room${game.room}desc`));set('body',tr(controlled?.role||'nim'));set('safe',tr(isHidden(game)?(controlled?'bodyResting':'safe'):(controlled?'bodyDanger':'exposed')));set('rescues',tr('rescueCount',{count:rescueCount}));set('tip',tr(`tip${game.room}`));
-    const tutorial=game.room===0?(room.gateOpen?(controlled?'tutorialReturn':'tutorialLeave'):controlled?'tutorialOperate':'tutorialObserve'):null;
+    const learned=game.milestones||{},n=game.nim;
+    const tutorial=game.room!==0?null:controlled?(room.gateOpen?'tutorialReturn':'tutorialOperate'):!learned.moved?'tutorialMove':n.x<2.8&&!n.heldItem&&!learned.thrown?'tutorialThrow':n.x<5.7&&n.y<.3?'tutorialCrawl':n.x>5.7&&n.x<8.3&&n.y<2.2?'tutorialLadder':!room.gateOpen?(n.heldItem&&!learned.thrown?'tutorialThrow':'tutorialObserve'):n.x>=27&&n.x<30&&n.y<2.2?'tutorialLadder':n.x>=29&&n.y>=2.2?'tutorialJump':'tutorialLeave';
     set('tutorial',tutorial?tr(tutorial):'');
     container.dataset.stage=tutorial&&!room.gateOpen?'tutorial':'playing';
-    set('context',interaction?`${tr(interaction.key)} · E`:target?`${tr('possess')} · Q`:targetInfo?.reason==='glass'?tr('targetBlockedGlass'):targetInfo?.reason==='machine'?tr('targetBlockedMachine'):'');
+    const ladder=(ROOMS[game.room].ladders||[]).some(l=>Math.abs(l.x-(controlled||game.nim).x)<.8&&traversal.height>=(l.bottom??l.fromY??0)-.3&&traversal.height<=(l.top??l.toY??6)+.3);
+    set('context',interaction?.enabled?`${tr(interaction.key)} · E`:ladder?`${tr('instructionClimb')}`:throwable?.enabled&&!game.nim.heldItem?`${tr('pickupItem')} · F`:target?`${tr('possess')} · Q`:interaction?`${tr(interaction.key)} · E`:targetInfo?.reason==='glass'?tr('targetBlockedGlass'):targetInfo?.reason==='machine'?tr('targetBlockedMachine'):'');
+    set('inventory',tr(game.nim.heldItem?'heldItem':'emptyHands'));set('elevation',tr('elevation',{height:Math.round(Math.max(0,traversal.height)*10)/10}));
+    const jumpBtn=ui.querySelector('[data-command="jump"]');if(jumpBtn){jumpBtn.disabled=!!controlled;jumpBtn.setAttribute('aria-keyshortcuts','Space');}
+    const crouchBtn=ui.querySelector('[data-command="crouch"]');if(crouchBtn){crouchBtn.disabled=!!controlled;crouchBtn.querySelector('span:last-child').textContent=tr(game.nim.crouching?'standUp':'crouch');crouchBtn.setAttribute('aria-pressed',String(!!game.nim.crouching));crouchBtn.setAttribute('aria-keyshortcuts','C');}
+    const throwBtn=ui.querySelector('[data-command="throw"]');if(throwBtn){throwBtn.disabled=!!controlled;throwBtn.querySelector('span:last-child').textContent=tr(game.nim.heldItem?'throwItem':'pickupItem');throwBtn.classList.toggle('available',!!throwable?.enabled||!!game.nim.heldItem);throwBtn.setAttribute('aria-keyshortcuts','F');}
     set('danger',danger>.05?tr(controlled?'bodyDanger':'detected'):'');
     const possessBtn=ui.querySelector('[data-command="possess"]');if(possessBtn){possessBtn.querySelector('span:last-child').textContent=tr(controlled?'return':'possess');possessBtn.classList.toggle('available',!!controlled||!!target);possessBtn.setAttribute('aria-keyshortcuts','Q');}
     const actionBtn=ui.querySelector('[data-command="action"]');if(actionBtn){actionBtn.classList.toggle('available',!!interaction?.enabled);actionBtn.setAttribute('aria-keyshortcuts','E');}
@@ -95,11 +111,11 @@ export async function mount(container) {
     let title=tr(modal),body='',buttons='';
     if(modal==='paused'){body=`<p>${esc(tr(`room${game.room}desc`))}</p>`;buttons=button('resume','resume','primary','↗')+button('settings','settings','quiet')+button('help','help','quiet')+button('journal','journal','quiet')+button('exit','exit','text-button');}
     if(modal==='settings'){body=settingsHTML();buttons=button('back','close','primary');}
-    if(modal==='help'){body=`<div class="help-keys"><div><kbd>A D</kbd><kbd>← →</kbd><p>${esc(tr('instructionMove'))}</p></div><div><kbd>E</kbd><p>${esc(tr('instructionAction'))}</p></div><div><kbd>Q</kbd><p>${esc(tr('instructionPossess'))}</p></div></div><p>${esc(tr('instructionReturn'))}</p><p>${esc(tr('helpBody'))}</p>`;buttons=button('back','close','primary');}
+    if(modal==='help'){body=`<div class="help-keys"><div><kbd>A D</kbd><kbd>← →</kbd><p>${esc(tr('instructionMove'))}</p></div><div><kbd>Space</kbd><p>${esc(tr('instructionJump'))}</p></div><div><kbd>C</kbd><p>${esc(tr('instructionCrouch'))}</p></div><div><kbd>W S</kbd><kbd>↑ ↓</kbd><p>${esc(tr('instructionClimb'))}</p></div><div><kbd>F</kbd><p>${esc(tr('instructionThrow'))}</p></div><div><kbd>E</kbd><p>${esc(tr('instructionAction'))}</p></div><div><kbd>Q</kbd><p>${esc(tr('instructionPossess'))}</p></div></div><p>${esc(tr('instructionReturn'))}</p><p>${esc(tr('helpBody'))}</p>`;buttons=button('back','close','primary');}
     if(modal==='journal'){body=game.visits.map((v,i)=>v?`<h3>${esc(tr('room'+i))}</h3><p>${esc(tr('journal'+i))}</p>`:'').join('');buttons=button('back','close','primary');}
     if(modal==='credits'){body=`<p>${esc(tr('creditsBody'))}</p><p class="small-label">Three.js · Vite · Blender · Web Audio</p>`;buttons=button('back','close','primary');}
     if(modal==='new'){title=tr('newGame');body=`<p>${esc(tr('resetConfirm'))}</p>`;buttons=button('newGame','start','primary')+button('cancel','close','quiet');}
-    if(modal==='lost'){title=tr('lost');body=`<div class="ending-symbol">◎</div><p>${esc(tr(game.loss?.key==='bodyFound'?'lostBody':'lostNim'))}</p><p class="small-label">${esc(tr('deathDetail',{role:tr(game.rooms[game.room].guards.find(g=>g.id===game.loss?.guardId)?.role||'keeper'),room:tr(`room${game.room}`)}))}</p>`;buttons=button('retry','retry','primary','↻')+button('exit','exit','quiet');}
+    if(modal==='lost'){title=tr(game.loss?.key==='fell'?'fell':'lost');body=`<div class="ending-symbol">◎</div><p>${esc(tr(game.loss?.key==='fell'?'lostFall':game.loss?.key==='bodyFound'?'lostBody':'lostNim'))}</p>${game.loss?.key==='fell'?'':`<p class="small-label">${esc(tr('deathDetail',{role:tr(game.rooms[game.room].guards.find(g=>g.id===game.loss?.guardId)?.role||'keeper'),room:tr(`room${game.room}`)}))}</p>`}`;buttons=button('retry','retry','primary','↻')+button('exit','exit','quiet');}
     if(modal==='won'){
       const count=game.rooms.filter(r=>r.rescued).length;title=tr(`ending${count}title`);body=`<div class="ending-symbol">${['○','◒','●'][count]}</div><p>${esc(tr(`ending${count}body`))}</p><p class="small-label">${esc(tr('rescueCount',{count}))}</p><div class="commission"><p>${esc(tr('demo'))}</p><a href="mailto:support@kikkey.com?subject=OTHERSELF%20%E2%80%94%20Kikkey%20Games">${esc(tr('brandGame'))} ↗</a><a href="https://wa.me/972538259813?text=${encodeURIComponent(`OTHERSELF — ${tr('gameProject')}`)}" target="_blank" rel="noopener noreferrer">${esc(tr('gameProject'))} ↗</a></div>`;buttons=button('playAgain','start','primary','↻')+button('exit','exit','quiet');
     }
@@ -113,31 +129,34 @@ export async function mount(container) {
     if(!scene){location.reload();return;}
     game=useSaved&&saved?restore(typeof saved==='string'?saved:JSON.stringify(saved)):createGame();
     if(!game||game.phase!=='playing')game=createGame();
-    endingTime=null;scene?.setEndingMode?.(null);pausedFrom='game';mode='game';modal=null;lastPhase=game.phase;lastRoom=game.room;accumulator=0;input.left=input.right=false;
+    endingTime=null;scene?.setEndingMode?.(null);pausedFrom='game';mode='game';modal=null;lastPhase=game.phase;lastRoom=game.room;accumulator=0;resetInput();
     audio.unlock().then(()=>{applyPrefs();audio.resume();});render();save();container.focus();
   }
-  function pause(){if(!['game','ending'].includes(mode))return;pausedFrom=mode;mode='paused';input.left=input.right=false;audio.pause();save();modal='paused';render();}
+  function pause(){if(!['game','ending'].includes(mode))return;pausedFrom=mode;mode='paused';resetInput();audio.pause();save();modal='paused';render();}
   function resume(){if(mode!=='paused')return;mode=pausedFrom;modal=null;previous=performance.now();accumulator=0;audio.resume();render();container.focus();}
   function finishEnding(){endingTime=8;scene?.setEndingMode?.(8,game.rooms.filter(r=>r.rescued).length);mode='paused';modal='won';render();}
-  function exit(){save();endingTime=null;scene?.setEndingMode?.(null);mode='menu';modal=null;audio.pause();input.left=input.right=false;game=createGame();render();}
+  function exit(){save();endingTime=null;scene?.setEndingMode?.(null);mode='menu';modal=null;audio.pause();resetInput();game=createGame();render();}
   function command(cmd){
-    if(cmd==='finishEnding')finishEnding();else if(cmd==='start')start();else if(cmd==='continue')start(true);else if(cmd==='new')openModal('new');else if(cmd==='pause')pause();else if(cmd==='resume')resume();else if(cmd==='close')closeModal();else if(['settings','help','credits','journal'].includes(cmd))openModal(cmd);else if(cmd==='home'){if(mode!=='menu')exit();}else if(cmd==='exit')exit();else if(cmd==='reload')location.reload();else if(cmd==='mute'){preferences.muted=!preferences.muted;audio.unlock();applyPrefs();render();}else if(cmd==='retry'){game=retry(game)||game;mode='game';modal=null;lastPhase='playing';audio.resume();render();save();}else if(mode==='game'&&cmd==='action')action(game);else if(mode==='game'&&cmd==='possess')possess(game);
+    if(cmd==='finishEnding')finishEnding();else if(cmd==='start')start();else if(cmd==='continue')start(true);else if(cmd==='new')openModal('new');else if(cmd==='pause')pause();else if(cmd==='resume')resume();else if(cmd==='close')closeModal();else if(['settings','help','credits','journal'].includes(cmd))openModal(cmd);else if(cmd==='home'){if(mode!=='menu')exit();}else if(cmd==='exit')exit();else if(cmd==='reload')location.reload();else if(cmd==='mute'){preferences.muted=!preferences.muted;audio.unlock();applyPrefs();render();}else if(cmd==='retry'){game=retry(game)||game;mode='game';modal=null;lastPhase='playing';resetInput();audio.resume();render();save();container.focus({preventScroll:true});}else if(mode==='game'&&cmd==='action')action(game);else if(mode==='game'&&cmd==='possess')possess(game);else if(mode==='game'&&cmd==='jump')jump(game);else if(mode==='game'&&cmd==='crouch')toggleCrouch(game);else if(mode==='game'&&cmd==='throw')useThrowable(game);
   }
   container.tabIndex=0;
-  container.addEventListener('click',e=>{const el=e.target.closest('[data-command]');if(el){e.preventDefault();command(el.dataset.command);}},{signal});
+  container.addEventListener('click',e=>{const el=e.target.closest('[data-command]');if(el){e.preventDefault();if(e.detail>0&&performance.now()-(touchCommands.get(el)??-Infinity)<900)return;command(el.dataset.command);}},{signal});
   container.addEventListener('change',e=>{const key=e.target.dataset.pref;if(!key)return;preferences[key]=e.target.type==='checkbox'?e.target.checked:e.target.type==='range'?Number(e.target.value):e.target.value;applyPrefs();if(key==='lang'){render();if(mode==='game')container.focus();if(toastKey)toast.textContent=tr(toastKey);}},{signal});
-  container.addEventListener('pointerdown',e=>{const btn=e.target.closest('[data-move]');if(btn&&mode==='game'){e.preventDefault();input[btn.dataset.move]=true;btn.setPointerCapture(e.pointerId);}},{signal});
-  for(const event of ['pointerup','pointercancel','lostpointercapture'])container.addEventListener(event,e=>{const btn=e.target.closest('[data-move]');if(btn)input[btn.dataset.move]=false;},{signal});
+  container.addEventListener('pointerdown',e=>{if(mode!=='game')return;const btn=e.target.closest('[data-move]');if(btn){e.preventDefault();heldPointers.set(e.pointerId,btn.dataset.move);syncInput();btn.setPointerCapture(e.pointerId);return;}const actionButton=e.target.closest('.controls-v2 [data-command]');if(actionButton&&!actionButton.disabled&&e.pointerType==='touch'){e.preventDefault();touchCommands.set(actionButton,performance.now());command(actionButton.dataset.command);}},{signal});
+  for(const event of ['pointerup','pointercancel','lostpointercapture'])container.addEventListener(event,e=>{heldPointers.delete(e.pointerId);syncInput();},{signal});
   container.addEventListener('keydown',e=>{
     if(e.code==='Escape'){e.preventDefault();if(modal==='won'||modal==='lost')return;if(modal&&modal!=='paused'&&modal!=='won'&&modal!=='lost')closeModal();else if(['game','ending'].includes(mode))pause();else if(mode==='paused')resume();return;}
     if(mode!=='game'||modal||['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
-    if(['KeyA','ArrowLeft'].includes(e.code)){input.left=true;e.preventDefault();}
-    if(['KeyD','ArrowRight'].includes(e.code)){input.right=true;e.preventDefault();}
+    const direction=directionByCode[e.code];
+    if(direction){heldKeys.add(e.code);syncInput();e.preventDefault();}
     if(!e.repeat&&e.code==='KeyE'){action(game);e.preventDefault();}
-    if(!e.repeat&&['KeyQ','Space'].includes(e.code)){possess(game);e.preventDefault();}
+    if(!e.repeat&&e.code==='KeyQ'){possess(game);e.preventDefault();}
+    if(!e.repeat&&e.code==='Space'){jump(game);e.preventDefault();}
+    if(!e.repeat&&['KeyC','ControlLeft','ControlRight'].includes(e.code)){toggleCrouch(game);e.preventDefault();}
+    if(!e.repeat&&e.code==='KeyF'){useThrowable(game);e.preventDefault();}
   },{signal});
-  container.addEventListener('keyup',e=>{if(['KeyA','ArrowLeft'].includes(e.code))input.left=false;if(['KeyD','ArrowRight'].includes(e.code))input.right=false;},{signal});
-  window.addEventListener('blur',()=>{input.left=input.right=false;if(['game','ending'].includes(mode))pause();},{signal});
+  container.addEventListener('keyup',e=>{if(directionByCode[e.code]){heldKeys.delete(e.code);syncInput();}},{signal});
+  window.addEventListener('blur',()=>{resetInput();if(['game','ending'].includes(mode))pause();},{signal});
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&['game','ending'].includes(mode))pause();},{signal});
   window.addEventListener('pagehide',save,{signal});
   world.addEventListener('webglcontextlost',e=>{e.preventDefault();pause();mode='error';modal=null;loadError=false;render();},{signal,capture:true});
@@ -146,10 +165,10 @@ export async function mount(container) {
   function tick(now){
     if(destroyed)return;const dt=Math.min(.05,(now-(previous||now))/1000);previous=now;
     if(mode==='game'){
-      accumulator+=dt;while(accumulator>=1/60){step(game,1/60,{move:Number(input.right)-Number(input.left)});accumulator-=1/60;}
-      for(const event of game.events.splice(0)){audio.event(event.type,event);if(event.key)notify(event.key);}
-      if(game.room!==lastRoom){lastRoom=game.room;save();render();}
-      if(game.phase!==lastPhase){lastPhase=game.phase;if(game.phase==='won'){endingTime=0;mode='ending';modal=null;input.left=input.right=false;scene?.setEndingMode?.(0,game.rooms.filter(r=>r.rescued).length);try{localStorage.removeItem(SAVE);saved=null;}catch{}render();}else if(game.phase==='lost'){modal='lost';mode='paused';render();}}
+      accumulator+=dt;while(accumulator>=1/60){step(game,1/60,{move:Number(input.right)-Number(input.left),climb:Number(input.up)-Number(input.down)});accumulator-=1/60;}
+      for(const event of game.events.splice(0)){if(event.room!==undefined&&event.room!==game.room)continue;audio.event(event.type,event);if(event.key)notify(event.key);}
+      if(game.room!==lastRoom){lastRoom=game.room;save();render();container.focus({preventScroll:true});}
+      if(game.phase!==lastPhase){lastPhase=game.phase;if(game.phase==='won'){endingTime=0;mode='ending';modal=null;resetInput();scene?.setEndingMode?.(0,game.rooms.filter(r=>r.rescued).length);try{localStorage.removeItem(SAVE);saved=null;}catch{}render();}else if(game.phase==='lost'){resetInput();modal='lost';mode='paused';render();}}
       saveClock+=dt;if(saveClock>2){save();saveClock=0;}updateHUD();audio.update(game,dt);
     }
     if(toastClock>0){toastClock-=dt;if(toastClock<=0)toast.classList.remove('visible');}

@@ -1,10 +1,17 @@
 import {test, expect} from '@playwright/test';
-import {mkdir, writeFile} from 'node:fs/promises';
+import {mkdir, writeFile, readFile} from 'node:fs/promises';
+const audioArtifacts=process.env.AUDIO_ARTIFACT_DIR || 'test-results/audio';
+
+async function audioPage(page) {
+  const source=await readFile(new URL('../src/audio.js',import.meta.url),'utf8');
+  await page.route('**/src/audio.js',route=>route.fulfill({contentType:'text/javascript',body:source}));
+  await page.route('**/audio-check',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><title>Audio signal validation</title>'}));
+  await page.goto('/audio-check');
+}
 
 test('production audio graph renders three distinct unclipped endings, separate buses and mute', async ({page}) => {
   // Do not boot WebGL: this test exercises the actual Web Audio graph in isolation.
-  await page.route('**/audio-check', route => route.fulfill({contentType:'text/html',body:'<!doctype html><title>Audio signal validation</title>'}));
-  await page.goto('/audio-check');
+  await audioPage(page);
   const result = await page.evaluate(async () => {
     const {renderAudioPreview} = await import('/src/audio.js');
     const buffers = [];
@@ -64,13 +71,62 @@ test('production audio graph renders three distinct unclipped endings, separate 
   expect(result.stressed.clipped).toBe(0);
   expect(result.stressed.peak).toBeLessThan(0.85);
   const {pcm,...metrics}=result;
-  await mkdir('test-results/audio',{recursive:true});
-  await writeFile('test-results/audio/metrics.json',JSON.stringify(metrics,null,2));
+  await mkdir(audioArtifacts,{recursive:true});
+  await writeFile(`${audioArtifacts}/metrics.json`,JSON.stringify(metrics,null,2));
   const wave=Buffer.alloc(44+pcm.length*2);
   wave.write('RIFF',0);wave.writeUInt32LE(wave.length-8,4);wave.write('WAVEfmt ',8);
   wave.writeUInt32LE(16,16);wave.writeUInt16LE(1,20);wave.writeUInt16LE(1,22);
   wave.writeUInt32LE(24000,24);wave.writeUInt32LE(48000,28);wave.writeUInt16LE(2,32);wave.writeUInt16LE(16,34);
   wave.write('data',36);wave.writeUInt32LE(pcm.length*2,40);
   pcm.forEach((value,index)=>wave.writeInt16LE(value,44+index*2));
-  await writeFile('test-results/audio/ending-two-voices.wav',wave);
+  await writeFile(`${audioArtifacts}/ending-two-voices.wav`,wave);
+});
+
+test('V2 traversal and distraction cues add real sound, follow strength and respect ladder movement', async ({page}) => {
+  await audioPage(page);
+  const result=await page.evaluate(async()=>{
+    const {createAudio}=await import('/src/audio.js');
+    const sampleRate=24000;
+    async function render({event=null, ladderMovement=false, ladderStationary=false}={}) {
+      const context=new OfflineAudioContext(1,sampleRate*2,sampleRate);
+      const audio=createAudio({contextFactory:()=>context,offline:true});
+      await audio.unlock();
+      const state={phase:'playing',room:0,controlled:null,nim:{x:7,y:0,grounded:false,crouching:false,ladderId:'test-ladder'},rooms:[{guards:[]}]};
+      if(ladderMovement||ladderStationary)audio.update(state,0);
+      const times=ladderMovement||ladderStationary?[.5,.7,.9,1.1,1.3,1.5]:[.5];
+      const suspensions=times.map(time=>context.suspend(time));
+      const rendering=context.startRendering();
+      for(let i=0;i<times.length;i++) {
+        await suspensions[i];
+        if(i===0&&event)audio.event(event.type,event);
+        if(ladderMovement||ladderStationary) {
+          if(ladderMovement)state.nim.y+=.42;
+          audio.update(state,.1);
+        }
+        await context.resume();
+      }
+      const buffer=await rendering;audio.destroy();return buffer.getChannelData(0);
+    }
+    const measure=data=>{let energy=0,peak=0;for(const value of data){if(!Number.isFinite(value))throw Error('Non-finite audio sample');energy+=value*value;peak=Math.max(peak,Math.abs(value));}return{rms:Math.sqrt(energy/data.length),peak};};
+    const delta=(a,b)=>measure(a.map((value,index)=>value-b[index]));
+    const baseline=await render();
+    const cues=[];
+    for(const type of ['jump','land','ladder','pickup','throw','impact','investigate','search']) {
+      const signal=await render({event:{type,strength:.8}});
+      cues.push({type,...delta(signal,baseline)});
+    }
+    const impactStrength=[];
+    for(const strength of [.1,1])impactStrength.push({strength,...delta(await render({event:{type:'impact',strength}}),baseline)});
+    const ladderMovement=delta(await render({ladderMovement:true}),await render({ladderStationary:true}));
+    return{browser:navigator.userAgent,sampleRate,seconds:2,baseline:measure(baseline),cues,impactStrength,ladderMovement};
+  });
+  for(const cue of result.cues) {
+    expect(cue.rms,`${cue.type} must add an audible signal`).toBeGreaterThan(0.0001);
+    expect(cue.peak,`${cue.type} must retain headroom`).toBeLessThan(.5);
+  }
+  expect(result.impactStrength[1].rms).toBeGreaterThan(result.impactStrength[0].rms*1.5);
+  expect(result.ladderMovement.rms).toBeGreaterThan(.0001);
+  expect(result.ladderMovement.peak).toBeLessThan(.5);
+  await mkdir(audioArtifacts,{recursive:true});
+  await writeFile(`${audioArtifacts}/v2-metrics.json`,JSON.stringify(result,null,2));
 });

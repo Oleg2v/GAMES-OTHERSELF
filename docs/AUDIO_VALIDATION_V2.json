@@ -1,0 +1,75 @@
+{
+  "browser": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+  "sampleRate": 24000,
+  "seconds": 2,
+  "baseline": {
+    "rms": 0.02997930328693386,
+    "peak": 0.10990557074546814
+  },
+  "cues": [
+    {
+      "type": "jump",
+      "rms": 0.0003819798252134218,
+      "peak": 0.005999237298965454
+    },
+    {
+      "type": "land",
+      "rms": 0.0007520906995446272,
+      "peak": 0.014570620842278004
+    },
+    {
+      "type": "ladder",
+      "rms": 0.00039862747812169586,
+      "peak": 0.008144615218043327
+    },
+    {
+      "type": "pickup",
+      "rms": 0.0006575338130224908,
+      "peak": 0.0105599882081151
+    },
+    {
+      "type": "throw",
+      "rms": 0.00013150571504113223,
+      "peak": 0.0034353393130004406
+    },
+    {
+      "type": "impact",
+      "rms": 0.002145533001880671,
+      "peak": 0.03011218085885048
+    },
+    {
+      "type": "investigate",
+      "rms": 0.0003978111100505152,
+      "peak": 0.003393065184354782
+    },
+    {
+      "type": "search",
+      "rms": 0.0003978111077318715,
+      "peak": 0.003393065184354782
+    }
+  ],
+  "impactStrength": [
+    {
+      "strength": 0.1,
+      "rms": 0.0008607423625786528,
+      "peak": 0.011637051589787006
+    },
+    {
+      "strength": 1,
+      "rms": 0.002506275556011232,
+      "peak": 0.03536428511142731
+    }
+  ],
+  "ladderMovement": {
+    "rms": 0.0009779048964157848,
+    "peak": 0.008157990872859955
+  },
+  "validated": "2026-11-18",
+  "command": "npx playwright test tests/browser-audio.spec.js",
+  "method": "Chromium OfflineAudioContext renders src/audio.js. V2 cues are scheduled after 0.5 seconds to let gain ramps settle. Cue metrics are differences from an identical ambient baseline; ladder metrics compare moving and stationary actors on a ladder.",
+  "outcome": "passed",
+  "limitations": [
+    "Signal validation does not establish subjective listening comfort.",
+    "No separate native-speaker Hebrew review."
+  ]
+}

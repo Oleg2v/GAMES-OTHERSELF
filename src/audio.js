@@ -16,10 +16,14 @@ export function createAudio({ contextFactory = null, offline = false } = {}) {
   let noteClock = 0;
   let stepClock = 0;
   let lastX = null;
+  let lastY = null;
+  let lastLadder = null;
+  let rungDistance = 0;
   let lastActor = null;
   let lastRoom = -1;
   let tension = 0;
   let finaleStarted = false;
+  const cueTimes = new Map();
   const continuous = new Set();
   const transient = new Set();
   const pads = [];
@@ -203,7 +207,50 @@ export function createAudio({ contextFactory = null, offline = false } = {}) {
   }
   function event(type, details = {}) {
     if (!active()) return;
-    switch (type) {
+    const cue = ({ landing:'land', ladderRung:'ladder', pickupItem:'pickup', throwItem:'throw', itemImpact:'impact', searching:'search', investigation:'investigate' })[type] || type;
+    const interval = ({jump:0.12,land:0.16,ladder:0.18,pickup:0.15,throw:0.15,impact:0.09,investigate:1.2,search:1.2,alarm:1.2,detected:1.2})[cue];
+    const now = context.currentTime;
+    if (interval && now - (cueTimes.get(cue) ?? -Infinity) < interval) return;
+    if (interval) cueTimes.set(cue, now);
+    const strength = Math.max(0.1, Math.min(1, Number.isFinite(Number(details.strength)) ? Number(details.strength) : 0.55));
+    switch (cue) {
+      case 'jump':
+        noise(0.12, 0.045, 520);
+        tone(135, 0.12, 0.018, 'sine', effectsBus, 0, 185);
+        break;
+      case 'land':
+        noise(0.11 + strength * 0.07, 0.035 + strength * 0.085, 220 + strength * 110);
+        tone(72, 0.12, 0.014 + strength * 0.035, 'sine', effectsBus, 0, 48);
+        break;
+      case 'ladder':
+        tone(530, 0.08, 0.025, 'sine');
+        noise(0.055, 0.028, 940);
+        break;
+      case 'pickup':
+        tone(720, 0.12, 0.035, 'sine');
+        noise(0.08, 0.025, 1200);
+        break;
+      case 'throw':
+        noise(0.18, 0.07, 1350);
+        break;
+      case 'impact':
+        // Three irregular contacts give the scrap a metal identity without a shrill alarm.
+        [0, 0.075, 0.19].forEach((delay, index) => {
+          const level = (0.025 + strength * 0.075) / (index + 1);
+          tone(760 - index * 112, 0.17 - index * 0.025, level, 'sine', effectsBus, delay);
+          tone(1129 - index * 164, 0.12, level * 0.28, 'sine', effectsBus, delay);
+          noise(0.07, level * 0.6, 1300, delay);
+        });
+        break;
+      case 'investigate':
+      case 'search':
+        if (details.key === 'investigationFinished') {
+          tone(196, 0.4, 0.018, 'sine', musicBus, 0, 261.63);
+          break;
+        }
+        tone(196, 0.35, 0.025, 'sine', musicBus);
+        tone(207.65, 0.3, 0.016, 'sine', musicBus, 0.18);
+        break;
       case 'possessionStart':
         tone(1340, 0.12, 0.15, 'triangle');
         tone(2680, 0.065, 0.05, 'sine', effectsBus, 0.015);
@@ -227,6 +274,11 @@ export function createAudio({ contextFactory = null, offline = false } = {}) {
         tone(587.3, 0.25, 0.04, 'sine', effectsBus, 0.22);
         break;
       case 'mechanism':
+        if (details.key === 'routeReady') {
+          noise(0.12, 0.07, 390);
+          tone(293.66, 0.3, 0.025, 'sine');
+          break;
+        }
         noise(0.9, 0.2, 280);
         tone(73.41, 1.1, 0.1, 'triangle');
         break;
@@ -270,7 +322,9 @@ export function createAudio({ contextFactory = null, offline = false } = {}) {
     const room = state.rooms?.[state.room];
     const guards = room?.guards || [];
     const danger = guards.reduce((value, guard) => Math.max(value, Number(guard.alert) || 0), 0);
-    tension += (Math.min(1, danger / 2) - tension) * Math.min(1, delta * 2);
+    const searching = guards.some(guard => guard.investigate != null || ['investigate', 'search'].includes(guard.mode || guard.state));
+    const targetTension = Math.max(Math.min(1, danger / 2), searching ? 0.18 : 0);
+    tension += (targetTension - tension) * Math.min(1, delta * 2);
     smooth(windFilter.frequency, 460 + Math.sin(elapsed * 0.17) * 190 + (state.room === 3 ? 380 : 0), 0.4);
     smooth(ambienceGain.gain, 0.27 + Math.sin(elapsed * 0.31) * 0.08, 0.4);
     for (let index = 0; index < pads.length; index++) {
@@ -293,16 +347,28 @@ export function createAudio({ contextFactory = null, offline = false } = {}) {
     }
     const actor = state.controlled ? guards.find(guard => guard.id === state.controlled) : state.nim;
     const actorId = state.controlled || 'nim';
-    if (actor && lastActor === actorId && lastX !== null && Math.abs(actor.x - lastX) > 0.002 && state.phase === 'playing') {
+    const ladderId = actor?.ladderId || null;
+    if (actor && ladderId && ladderId === lastLadder && lastActor === actorId && lastY !== null && state.phase === 'playing') {
+      rungDistance += Math.abs((actor.y || 0) - lastY);
+      if (rungDistance >= 0.38) {
+        event('ladder'); // Shared cooldown avoids repeating the ladder-attach cue.
+        rungDistance %= 0.38;
+      }
+    } else rungDistance = 0;
+
+    if (actor && (actor.grounded ?? actor.onGround ?? true) && !actor.climbing && !actor.onLadder && !actor.ladder && !actor.ladderId && lastActor === actorId && lastX !== null && Math.abs(actor.x - lastX) > 0.002 && state.phase === 'playing') {
       stepClock -= delta;
       if (stepClock <= 0) {
         const worker = Boolean(state.controlled);
-        noise(worker ? 0.11 : 0.06, worker ? 0.10 : 0.045, worker ? 220 : 780);
+        const crouched = Boolean(actor.crouched || actor.crouching);
+        noise(worker ? 0.11 : 0.06, (worker ? 0.10 : 0.045) * (crouched ? 0.38 : 1), worker ? 220 : 780);
         if (worker) tone(72, 0.08, 0.025, 'sine');
-        stepClock = worker ? 0.45 : 0.31;
+        stepClock = crouched ? 0.53 : worker ? 0.45 : 0.31;
       }
     } else stepClock = Math.min(stepClock, 0.08);
     lastX = actor?.x ?? null;
+    lastY = actor?.y ?? null;
+    lastLadder = ladderId;
     lastActor = actorId;
   }
   function setVolumes(music, effects) {
@@ -331,6 +397,7 @@ export function createAudio({ contextFactory = null, offline = false } = {}) {
     continuous.clear();
     transient.clear();
     pads.length = 0;
+    cueTimes.clear();
     if (context && typeof context.close === 'function' && context.state !== 'closed') context.close().catch(() => {});
     context = null;
     noiseBuffer = null;

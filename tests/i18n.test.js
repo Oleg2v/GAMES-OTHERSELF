@@ -57,3 +57,49 @@ test('cinematic, tutorial and ray-blocking copy covers all branches', () => {
     assert.notEqual(t(lang,'endingOneVoice'), t(lang,'endingTwoVoices'));
   }
 });
+
+test('V2 manual controls, inventory, traversal and failure events are complete in all locales', () => {
+  const keys = ['jump','crouch','standUp','climbUp','climbDown','throwItem','pickupItem','heldItem','emptyHands','instructionJump','instructionCrouch','instructionClimb','instructionThrow','tutorialMove','tutorialJump','tutorialCrawl','tutorialLadder','tutorialThrow','traversalHint','v2Badge','climbLadder','land','itemImpact','heardImpact','searching','cannotStand','cannotJump','crouchEnabled','crouchDisabled','fell','fallLost','exitAbove','saveMigrated','staffCannotThrow','carrierFell','bolt','can'];
+  for (const lang of ['ru','en','he']) {
+    for (const key of keys) {
+      const text=t(lang,key);
+      assert.notEqual(text,`[${key}]`,`${lang}.${key}`);
+      assert.ok(!text.includes('{'),`${lang}.${key} must not require an unprovided parameter`);
+    }
+    assert.notEqual(t(lang,'pickupItem'),t(lang,'throwItem'));
+    assert.notEqual(t(lang,'crouch'),t(lang,'standUp'));
+    assert.notEqual(t(lang,'heldItem'),t(lang,'emptyHands'));
+    assert.match(t(lang,'instructionJump'), /Space/);
+    assert.match(t(lang,'instructionCrouch'), /C/);
+    assert.match(t(lang,'instructionClimb'), /W \/ S/);
+    assert.match(t(lang,'instructionThrow'), /F/);
+    assert.match(t(lang,'instructionPossess'), /Q/);
+    assert.doesNotMatch(t(lang,'instructionPossess'), /Space/);
+    assert.doesNotMatch(t(lang,'instructionMove'), /automat|сам приг|אוטומט/i);
+  }
+});
+
+test('V2 elevation formats real numbers rather than concatenating untranslated units', () => {
+  for (const lang of ['ru','en','he']) {
+    for (const height of [0,1.2,2.3,4.8,11.5]) {
+      const value = new Intl.NumberFormat(lang,{maximumFractionDigits:1}).format(height);
+      const text=t(lang,'elevation',{height});
+      assert.ok(text.includes(value));
+      assert.ok(!text.includes('{height}'));
+      if(lang==='he')assert.ok(text.includes(`\u2068${value}\u2069`));
+    }
+  }
+  assert.ok(t('ru','elevation',{height:2.3}).includes('2,3'));
+  assert.ok(t('en','elevation',{height:2.3}).includes('2.3'));
+});
+
+test('all literal engine notification and interaction keys are localizable', async () => {
+  const {readFile}=await import('node:fs/promises');
+  const source=await readFile(new URL('../src/engine.js',import.meta.url),'utf8');
+  const notificationKeys=[...source.matchAll(/emit\(\s*\w+\s*,\s*['"][^'"]+['"]\s*,\s*['"]([^'"]+)['"]\s*(?=,|\))/g)].map(match=>match[1]);
+  const interactionKeys=[...source.matchAll(/\bkey:\s*['"]([^'"]+)['"]\s*(?=,|})/g)].map(match=>match[1]);
+  assert.ok(notificationKeys.length>10,'engine source must contain real notification keys');
+  for(const lang of ['ru','en','he'])for(const key of new Set([...notificationKeys,...interactionKeys])) {
+    assert.equal(typeof translations[lang][key],'string',`${lang}.${key}`);
+  }
+});

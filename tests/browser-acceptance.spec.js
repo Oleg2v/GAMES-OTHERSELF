@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-import {createGame,checkpoint,serialize} from '../src/engine.js';
+import {createGame,checkpoint,serialize,ROOMS} from '../src/engine.js';
 import {t} from '../src/i18n.js';
 import {state,capturePage,moveTo,possessRole} from './support/browser-game.js';
 
@@ -16,7 +16,7 @@ async function restoreFixture(page,game,lang='en'){
   await page.evaluate(()=>document.fonts.ready);await page.locator('[data-command=continue]').click();await expect(page.locator('#app')).toHaveAttribute('data-mode','game');
 }
 function endingFixture(count){
-  const s=createGame();s.room=3;s.nim.x=34;s.nim.facing=1;s.visits=[true,true,true,true];
+  const s=createGame();s.room=3;s.nim.x=34;s.nim.y=ROOMS[3].bellY;s.nim.facing=1;s.visits=[true,true,true,true];
   s.rooms.forEach(r=>{r.gateOpen=true;});s.rooms[1].rescued=count>=1;s.rooms[2].rescued=count===2;checkpoint(s);return s;
 }
 
@@ -59,9 +59,9 @@ test.describe('presentation and saved-state acceptance',()=>{
     await expect(page.getByRole('dialog').locator('h2')).toHaveText(t('he','ending1title'));
   });
   test('language switching and reload preserve the carrier, body, guards and running mechanism',async({page})=>{
-    const game=createGame();game.room=1;game.visits[1]=true;game.nim.x=10.6;game.nim.facing=1;
-    game.rooms[1].guards[0].x=15.5;game.rooms[1].guards[0].facing=1;
-    game.rooms[1].guards[1].x=17;checkpoint(game);game.controlled=game.rooms[1].guards[1].id;
+    const game=createGame();game.room=1;game.visits[1]=true;game.nim.x=8;game.nim.y=2.3;game.nim.facing=1;
+    game.rooms[1].guards[0].x=10;game.rooms[1].guards[0].facing=1;
+    game.rooms[1].guards[1].x=ROOMS[1].consoleX;game.rooms[1].guards[1].y=ROOMS[1].consoleY;checkpoint(game);game.controlled=game.rooms[1].guards[1].id;
     await restoreFixture(page,game,'en');await page.keyboard.press('KeyE');
     await expect.poll(async()=>(await state(page)).rooms[1].mechanism.active).toBe(true);
     const before=await state(page);await page.locator('[data-pref=lang]').selectOption('he');
@@ -77,30 +77,36 @@ test.describe('presentation and saved-state acceptance',()=>{
     const restored=await state(page);expect(restored.controlled).toBe(saved.controlled);expect(restored.nim).toEqual(saved.nim);
     expect(restored.rooms[1].guards[1].x).toBe(saved.rooms[1].guards[1].x);
     expect(restored.rooms[1].mechanism.progress).toBeGreaterThanOrEqual(saved.rooms[1].mechanism.progress);
-    expect(restored.rooms[1].guards[0].investigate).toBe(saved.rooms[1].guards[0].investigate);
+    expect(restored.rooms[1].guards[0].investigate).toEqual(saved.rooms[1].guards[0].investigate);
     await page.locator('[data-command=resume]').click();await page.keyboard.press('KeyQ');
     await expect.poll(async()=>(await state(page)).controlled).toBeNull();
     await expect.poll(async()=>(await state(page)).rooms[1].bridgeOpen,{timeout:30000}).toBe(true);
   });
   test('glass blocks the visible employee until Nim crawls to the real opening',async({page})=>{
-    const game=createGame();game.room=2;game.visits[2]=true;game.nim.x=4.5;game.nim.facing=1;checkpoint(game);
+    const game=createGame();game.room=2;game.visits[2]=true;game.nim.x=7.3;game.nim.y=2.3;game.nim.facing=1;checkpoint(game);
     await restoreFixture(page,game,'en');await page.keyboard.press('KeyQ');
     await expect(page.locator('.toast')).toHaveText(t('en','targetBlockedGlass'));
     expect((await state(page)).controlled).toBeNull();
     await capturePage(page,'acceptance-blocked-glass');
-    await moveTo(page,6.6);await possessRole(page,'keeper');
+    await moveTo(page,6.7);await page.keyboard.down('KeyS');
+    try{await expect.poll(async()=>(await state(page)).nim.y).toBeCloseTo(0,2);}finally{await page.keyboard.up('KeyS');}
+    await page.keyboard.press('KeyC');await moveTo(page,8.65);await page.keyboard.press('KeyC');
+    await page.keyboard.down('KeyD');await page.keyboard.press('Space');
+    try{await expect.poll(async()=>(await state(page)).nim.x).toBeGreaterThan(11.25);}finally{await page.keyboard.up('KeyD');}
+    await expect.poll(async()=>(await state(page)).nim.grounded).toBe(true);
+    await moveTo(page,11.7);await possessRole(page,'keeper');
     expect((await state(page)).controlled).toBe('r2-keeper');
   });
   function threatenedBody(){
-    const game=createGame();game.room=1;game.visits[1]=true;game.nim.x=10.6;game.rooms[1].gateOpen=true;
-    game.rooms[1].guards[0].x=11.8;game.rooms[1].guards[0].facing=1;
-    game.rooms[1].guards[1].x=30;checkpoint(game);game.nim.x=12.5;game.controlled='r1-tech';return game;
+    const game=createGame();game.room=1;game.visits[1]=true;game.nim.x=8;game.nim.y=2.3;game.rooms[1].gateOpen=true;
+    game.rooms[1].guards[0].x=9.8;game.rooms[1].guards[0].facing=1;
+    game.rooms[1].guards[1].x=27;game.rooms[1].guards[1].y=4.8;checkpoint(game);game.nim.x=10.7;game.controlled='r1-tech';return game;
   }
   test('offscreen body warning allows an immediate return and escape before detention',async({page})=>{
     await restoreFixture(page,threatenedBody(),'en');
     await expect(page.locator('.body-indicator')).toBeVisible();
     await expect.poll(()=>page.locator('.body-indicator progress').evaluate(el=>el.value)).toBeGreaterThan(.1);
-    await page.keyboard.press('KeyQ');await moveTo(page,10.6);
+    await page.keyboard.press('KeyQ');await moveTo(page,8);
     await expect.poll(async()=>(await state(page)).rooms[1].guards[0].alert).toBe(0);
     expect((await state(page)).phase).toBe('playing');expect((await state(page)).controlled).toBeNull();
   });
@@ -111,7 +117,7 @@ test.describe('presentation and saved-state acceptance',()=>{
     expect((await state(page)).loss.key).toBe('bodyFound');await capturePage(page,'acceptance-body-found-final');
     await page.locator('[data-command=retry]').click();
     await expect(page.locator('#app')).toHaveAttribute('data-mode','game');
-    expect((await state(page)).nim.x).toBe(10.6);expect((await state(page)).controlled).toBeNull();
+    expect((await state(page)).nim.x).toBe(8);expect((await state(page)).nim.y).toBe(2.3);expect((await state(page)).controlled).toBeNull();
   });
 
 });

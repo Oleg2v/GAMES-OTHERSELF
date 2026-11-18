@@ -1,0 +1,97 @@
+{
+  "teal-panel": {
+    "resolution": 1024,
+    "tileMeters": 1.5,
+    "metalness": 0.32,
+    "roughnessMultiplier": 1,
+    "normalScale": 0.65,
+    "description": "Painted teal access plate with rivets, peeled edge bands, restrained rust and water runs.",
+    "maps": {
+      "albedo": "assets/textures/v2/teal-panel-albedo.webp",
+      "normal": "assets/textures/v2/teal-panel-normal.webp",
+      "roughness": "assets/textures/v2/teal-panel-roughness.webp"
+    },
+    "bytes": {
+      "albedo": 29476,
+      "normal": 315620,
+      "roughness": 18146
+    }
+  },
+  "copper-tread": {
+    "resolution": 1024,
+    "tileMeters": 1.5,
+    "metalness": 0.72,
+    "roughnessMultiplier": 1,
+    "normalScale": 0.8,
+    "description": "Bolted raised safety tread with bronze oxidation and broad damp wear. Use on solid walkways; it does not fake open grate holes.",
+    "maps": {
+      "albedo": "assets/textures/v2/copper-tread-albedo.webp",
+      "normal": "assets/textures/v2/copper-tread-normal.webp",
+      "roughness": "assets/textures/v2/copper-tread-roughness.webp"
+    },
+    "bytes": {
+      "albedo": 13840,
+      "normal": 389092,
+      "roughness": 15884
+    }
+  },
+  "wet-concrete": {
+    "resolution": 512,
+    "tileMeters": 2,
+    "metalness": 0,
+    "roughnessMultiplier": 1,
+    "normalScale": 0.8,
+    "description": "Weathered mineral wall with broad damp patches, faint mineral bloom, sparse cracks and moss.",
+    "maps": {
+      "albedo": "assets/textures/v2/wet-concrete-albedo.webp",
+      "normal": "assets/textures/v2/wet-concrete-normal.webp",
+      "roughness": "assets/textures/v2/wet-concrete-roughness.webp"
+    },
+    "bytes": {
+      "albedo": 6716,
+      "normal": 89146,
+      "roughness": 3306
+    }
+  },
+  "leaf": {
+    "resolution": 512,
+    "tileMeters": 0.6,
+    "metalness": 0.02,
+    "roughnessMultiplier": 1,
+    "normalScale": 0.8,
+    "description": "Waxy jade leaf, continuous central rib and arching side veins. V follows leaf length; U follows width.",
+    "maps": {
+      "albedo": "assets/textures/v2/leaf-albedo.webp",
+      "normal": "assets/textures/v2/leaf-normal.webp",
+      "roughness": "assets/textures/v2/leaf-roughness.webp"
+    },
+    "bytes": {
+      "albedo": 5320,
+      "normal": 31278,
+      "roughness": 4372
+    }
+  },
+  "glass-grime": {
+    "resolution": 512,
+    "tileMeters": 1.8,
+    "metalness": 0,
+    "roughnessMultiplier": 1,
+    "normalScale": 0.35,
+    "description": "Thin condensation beads and vertical grime film. Use maps on existing transparent glass, not opaque albedo.",
+    "maps": {
+      "normal": "assets/textures/v2/glass-grime-normal.webp",
+      "roughness": "assets/textures/v2/glass-grime-roughness.webp"
+    },
+    "bytes": {
+      "normal": 20540,
+      "roughness": 6808
+    }
+  },
+  "_integration": {
+    "albedoColorSpace": "SRGBColorSpace",
+    "dataColorSpace": "NoColorSpace",
+    "normalConvention": "OpenGL (+Y)",
+    "wrap": "RepeatWrapping",
+    "note": "Colored albedo maps need a white or pale material color. Avoid multiplying by a second dark teal. Set roughness=1 with roughnessMap; the maps already contain authored roughness. Teal paint metalness is lower than exposed floor metal."
+  }
+}

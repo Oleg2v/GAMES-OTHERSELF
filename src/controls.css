@@ -1,0 +1,34 @@
+/* Traversal controls keep their physical sides in all three languages. */
+.otherself .release-version{display:block;letter-spacing:2px;font-size:9px;color:#dfac7c;margin-top:4px}
+@media(min-width:901px){.otherself .scene-caption{bottom:2%}}
+.otherself .controls-v2{align-items:end;gap:20px;bottom:max(22px,env(safe-area-inset-bottom))}
+.otherself .controls-v2 .movement{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(2,46px);gap:5px;flex-shrink:0;direction:ltr}
+.otherself .controls-v2 .movement button{width:48px;height:46px;border-radius:5px;background:#102629d9;border-color:#a5c8bd45;backdrop-filter:blur(5px);font-size:22px;touch-action:none}
+.otherself .controls-v2 .movement [data-move=up]{grid-column:2;grid-row:1}
+.otherself .controls-v2 .movement [data-move=left]{grid-column:1;grid-row:2}
+.otherself .controls-v2 .movement [data-move=down]{grid-column:2;grid-row:2}
+.otherself .controls-v2 .movement [data-move=right]{grid-column:3;grid-row:2}
+.otherself .controls-v2 .movement>span{top:-19px;font-size:8px;letter-spacing:2px;color:#a9c0b7}
+.otherself .controls-v2 .actions{display:grid;grid-template-columns:repeat(5,minmax(68px,1fr));gap:7px;direction:ltr}
+.otherself .controls-v2 .action-button{position:relative;min-width:68px;max-width:112px;min-height:60px;padding:8px 10px 19px;gap:5px;flex-direction:column;border-radius:5px;font-size:10px;line-height:1.3;text-align:center;touch-action:none;background:#102629e0;backdrop-filter:blur(5px)}
+.otherself .controls-v2 .action-button>span:first-child{font-size:22px;line-height:1}
+.otherself .controls-v2 .action-button>span:last-child{max-width:100%;overflow-wrap:anywhere}
+.otherself .controls-v2 .action-button::after{position:absolute;bottom:4px;font:8px Manrope,sans-serif;letter-spacing:1px;color:#90a99f;content:attr(aria-keyshortcuts)}
+.otherself .controls-v2 .action-button.available,.otherself .controls-v2 .action-button[aria-pressed=true]{border-color:#e8b489b3;color:#ffe0b8;background:#433b2fe8}
+.otherself .controls-v2 button:disabled{opacity:.36;cursor:default}
+.otherself .controls-v2 button:active{background:#d6aa79;color:#102325;transform:none}
+.otherself .controls-v2 .hint{max-width:280px;padding-bottom:4px}
+.otherself .equipment-status{position:absolute;top:216px;inset-inline-end:3.5%;display:flex;align-items:center;gap:7px;color:#acbeb4;font-size:10px;max-width:280px;flex-wrap:wrap;justify-content:flex-end}
+.otherself .equipment-icon{color:#f1b87b;font-size:18px}
+.otherself .equipment-status .elevation{border-inline-start:1px solid #a5c8bd45;padding-inline-start:9px;font:10px Manrope,Heebo,sans-serif;direction:ltr}
+.otherself .context-label{bottom:145px;border-radius:4px;max-width:min(460px,90%);line-height:1.55;pointer-events:none}
+.otherself[data-mode=game][data-alert=true] .toast{display:none}
+.otherself .tutorial-card{bottom:145px;max-width:285px;border-radius:0 4px 4px 0}
+.otherself[data-mode=game] .vignette,.otherself[data-mode=paused] .vignette{background:linear-gradient(0deg,#071519e6,transparent 25%,transparent 76%,#071519c9)}
+.otherself .help-keys{grid-template-columns:repeat(2,minmax(0,1fr))}
+.otherself .help-keys>div{border-bottom:1px solid #c6d7c620;padding-bottom:5px}
+@media(min-width:1100px){.otherself .game-objective{top:100px;max-width:300px}.otherself .body-status{top:100px}.otherself .rescue-status{top:155px}.otherself .equipment-status{top:190px}.otherself .context-label{bottom:135px}.otherself .tutorial-card{bottom:160px}}
+@media(max-width:900px){.otherself .controls-v2{gap:12px}.otherself .controls-v2 .actions{grid-template-columns:repeat(3,minmax(48px,1fr));grid-template-rows:repeat(2,minmax(44px,auto));gap:5px;width:184px}.otherself .controls-v2 .action-button{min-width:48px;max-width:none;min-height:44px;padding:4px;gap:3px;font-size:8px;line-height:1.2}.otherself .controls-v2 .action-button>span:first-child{font-size:18px}.otherself .controls-v2 .action-button::after{display:none}.otherself .controls-v2 .interact-button{grid-column:1;grid-row:2}.otherself .controls-v2 .possession{grid-column:2 / 4;grid-row:2;flex-direction:row;gap:8px;font-size:10px}.otherself .controls-v2 .hint{display:none}.otherself .context-label{bottom:145px}.otherself .tutorial-card{bottom:190px;max-width:240px}}
+@media(max-width:560px){.otherself .controls-v2{left:12px;right:12px;gap:10px;bottom:max(14px,env(safe-area-inset-bottom))}.otherself .controls-v2 .movement{grid-template-columns:repeat(3,44px);grid-template-rows:repeat(2,44px);gap:4px}.otherself .controls-v2 .movement button{width:44px;height:44px}.otherself .controls-v2 .actions{width:166px;gap:4px}.otherself .controls-v2 .action-button{min-width:48px;min-height:44px}.otherself .equipment-status{top:187px;inset-inline-end:15px;max-width:65%;font-size:9px}.otherself .equipment-status .elevation{font-size:9px}.otherself .tutorial-card{bottom:170px;inset-inline:15px;max-width:none;font-size:10px;padding:8px 10px}.otherself .context-label{bottom:118px;font-size:10px;min-width:0;padding:7px 12px}.otherself .help-keys{grid-template-columns:1fr}}
+@media(max-width:360px){.otherself .room-label h2{max-width:80px}.otherself .room-index small{display:none}.otherself .controls-v2{gap:8px}.otherself .controls-v2 .actions{width:148px}.otherself .controls-v2 .action-button{min-width:44px}}
+@media(max-height:550px) and (min-width:561px){.otherself .game-header{height:58px}.otherself .game-objective{top:64px;max-width:240px}.otherself .game-objective>.small-label{display:none}.otherself .game-objective p{margin:0;font-size:9px}.otherself .body-status{top:65px;font-size:10px}.otherself .rescue-status{top:104px;font-size:9px}.otherself .equipment-status{top:130px;font-size:9px}.otherself .equipment-status .elevation{font-size:9px}.otherself .controls-v2{bottom:max(10px,env(safe-area-inset-bottom));left:18px;right:18px}.otherself .controls-v2 .movement{grid-template-columns:repeat(3,44px);grid-template-rows:repeat(2,44px);gap:4px}.otherself .controls-v2 .movement button{width:44px;height:44px}.otherself .controls-v2 .movement>span{display:none}.otherself .context-label{bottom:32px;max-width:35%;font-size:9px;min-width:0;padding:6px 10px}.otherself .tutorial-card{bottom:118px;inset-inline-start:18px;max-width:195px;font-size:9px;padding:7px 9px}.otherself .danger-banner{top:25%;font-size:10px}.otherself .toast{top:23%;font-size:10px;padding:8px 12px}}

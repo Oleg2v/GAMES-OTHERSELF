@@ -1,6 +1,6 @@
 # OTHERSELF / ЧУЖОЕ ТЕЛО / גוף אחר
 
-An original playable 2.5D stealth episode for **Kikkey Games**: four halls, two borrowable roles, two optional rescues, three endings. Built with Three.js, authored Blender geometry and procedural Web Audio. The episode includes a complete route to the shuttle, both worker roles, optional rescues and a staged finale.
+An original playable 2.5D stealth episode for **Kikkey Games**: four multilevel halls, two borrowable roles, two optional rescues, three endings. Version 2 adds physical jumping, manual crawling, ladders and throwable distractions. Built with Three.js, authored Blender geometry and procedural Web Audio.
 
 ![OTHERSELF, actual browser-rendered menu](docs/screenshot-menu.png)
 
@@ -27,22 +27,25 @@ Playwright configuration uses `/usr/bin/chromium` with software WebGL in this cl
 ## Controls
 
 - A/D or left/right arrows: movement (physical keyboard codes, unchanged in RTL).
-- E: contextual action; Q or Space: possess / return. Touch controls expose the same actions.
+- Space: jump; C or Control: toggle crawling. Standing up requires sufficient headroom.
+- W/S or up/down arrows: climb a nearby ladder in either direction.
+- F: pick up a nearby metal object, or throw the object in your hand in the direction you face. Its impact attracts nearby guards.
+- E: contextual action; Q: possess / return. Touch controls expose the same actions and support moving while jumping.
 - Escape: pause/resume. Help, journal, settings, retry and exit are accessible through the interface.
 
-Face a worker within six metres; the double amber collar marks your target. Stay connected for 0.6 seconds. Leave Nim in a protected recess: his body remains vulnerable. A keeper can use hand readers, a technician operates gear consoles. Use E at the ramp to take a deployed covered bridge. Only Nim crosses hall boundaries. Rescue the two sail creatures if you wish; the final bell ends the episode. Backtracking remains possible before ringing it.
+Face a worker within six metres; the double amber collar marks your target. Stay connected for 0.6 seconds. Leave Nim in a protected recess: his body remains vulnerable. A keeper can use hand readers; a technician operates gear consoles. Their elevated posts require real routes through the station: climb, use low service passages, cross broken platforms and distract patrols with thrown objects. Only Nim crosses hall boundaries. Rescue the two sail creatures if you wish; the final bell on the upper shuttle deck ends the episode. Backtracking remains possible before ringing it.
 
-Local save includes room, active body, all worker positions and investigation state, machinery progress, gates, rescues and safe checkpoint. Settings persist separately. Corrupt saves fall back safely. No cloud synchronization or analytics.
+Local save includes room, active body, vertical movement and ladder state, held items and projectiles, worker investigations, machinery progress, gates, rescues and safe checkpoint. Version 1 saves migrate to a safe entrance in the redesigned room while retaining completed gates and rescues. Settings persist separately. Corrupt saves fall back safely. No cloud synchronization or analytics.
 
 ## Structure and embedding
 
 `src/engine.js` is deterministic world logic, independent of the renderer and browser. `src/scene.js` renders true 3D geometry, `src/audio.js` owns Web Audio, `src/i18n.js` contains complete dictionaries. `src/main.js` exposes `mount(container)`, returning `start`, `pause`, `resume`, `destroy`, `getState`, `getMode`; the standalone bootstrap mounts the local page. Destroy releases listeners, animation frame, audio and GPU resources. CSS is scoped under `.otherself` except the minimal standalone page defaults.
 
-Editable Blender files and generators live in `art/`; optimized GLBs live in `public/assets/`. See [asset provenance](docs/ASSETS.md), [design](docs/DESIGN.md), [localization/audio notes](docs/LOCALIZATION_AUDIO.md), and [validation/limitations](docs/QA.md).
+Editable Blender files and generators live in `art/`; optimized GLBs and local PBR textures live in `public/assets/`. See [asset provenance](docs/ASSETS.md), [design](docs/DESIGN.md), [vertical level routes](docs/LEVEL_DESIGN.md), [localization/audio notes](docs/LOCALIZATION_AUDIO.md), and [validation/limitations](docs/QA.md).
 
 ## Validation boundaries
 
-The practiced automated route is roughly 100–150 seconds of simulation; the 10–15 minute first-play target has not been measured with first-time human players. Nim now uses a weighted skeleton and baked normal/albedo maps, with a lower-detail mobile mesh. Automatic crouching, low ledges and narrow gaps are implemented. The eight-second finale includes boarding, rescued creatures and departure, and can be paused or skipped. Physical-phone performance and native-speaker Hebrew review remain external validation tasks; see the exact test evidence in docs/QA.md.
+First-play duration has not been measured with first-time human players; the older flat-route timing does not describe version 2. Nim uses a weighted skeleton and baked normal/albedo maps, with a lower-detail mobile mesh. The eight-second finale includes boarding, rescued creatures and departure, and can be paused or skipped. Physical-phone performance and native-speaker Hebrew review remain external validation tasks; see exact version-specific test evidence in docs/QA.md.
 
 Possible next episode: a wind-harvesting pier with the same two roles and rescued gliders as environmental storytellers. It is outside this build's scope.
 

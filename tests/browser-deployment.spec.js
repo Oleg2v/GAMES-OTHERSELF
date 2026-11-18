@@ -5,7 +5,7 @@ const deployment=process.env.DEPLOY_URL;
 test.describe('production subpath deployment',()=>{
   test.skip(!deployment,'Set DEPLOY_URL to the built or published application URL, including its subpath.');
   test.use({viewport:{width:960,height:640},deviceScaleFactor:.5});
-  test('bundled assets, possession and saved continuation work without development hooks',async({page})=>{
+  test('bundled assets, jumping, inventory and saved continuation work without development hooks',async({page})=>{
     test.setTimeout(120000);
     const url=new URL(deployment),prefix=url.pathname.endsWith('/')?url.pathname:`${url.pathname}/`;
     const errors=[],failed=[],assets=[],badResponses=[],external=[];
@@ -28,15 +28,23 @@ test.describe('production subpath deployment',()=>{
     await page.locator('[data-command=settings]').click();await page.locator('[data-pref=quality]').selectOption('low');await page.locator('[data-command=close]').click();
     await page.locator('[data-command=start]').click();
     await expect(page.locator('#app')).toHaveAttribute('data-mode','game');
-    await page.keyboard.down('KeyD');await page.waitForTimeout(300);await page.keyboard.up('KeyD');
-    await page.locator('[data-command=possess]').click();
-    await expect(page.locator('[data-hud=body]')).toHaveText(t('en','keeper'),{timeout:30000});
+    await page.locator('[data-command=throw]').click();
+    await expect(page.locator('[data-hud=inventory]')).toHaveText(t('en','heldItem'));
+    await page.locator('[data-command=jump]').click();
+    await expect(page.locator('[data-hud=elevation]')).not.toHaveText(t('en','elevation',{height:0}));
+    await expect(page.locator('[data-hud=elevation]')).toHaveText(t('en','elevation',{height:0}));
+    await page.locator('[data-command=crouch]').click();
+    await expect(page.locator('[data-command=crouch]')).toHaveAttribute('aria-pressed','true');
     await page.locator('[data-command=pause]').click();
     const saved=await page.evaluate(()=>localStorage.getItem('otherself.save.v1'));expect(saved).toBeTruthy();
+    expect(JSON.parse(saved).version).toBe(2);
+    expect(JSON.parse(saved).state.milestones.jumped).toBe(true);
+    expect(JSON.parse(saved).state.nim.heldItem).toBeTruthy();
     await page.locator('[data-command=exit]').click();await page.reload();
     await expect(page.locator('#app')).toHaveAttribute('data-mode','menu');
     await page.locator('[data-command=continue]').click();
-    await expect(page.locator('[data-hud=body]')).toHaveText(t('en','keeper'));
+    await expect(page.locator('[data-hud=inventory]')).toHaveText(t('en','heldItem'));
+    await expect(page.locator('[data-command=crouch]')).toHaveAttribute('aria-pressed','true');
     await page.locator('[data-command=pause]').click();
     const restored=await page.evaluate(()=>JSON.parse(localStorage.getItem('otherself.save.v1')));
     expect(restored.state.controlled).toBe(JSON.parse(saved).state.controlled);
@@ -45,9 +53,13 @@ test.describe('production subpath deployment',()=>{
     await page.locator('[data-pref=lang]').selectOption('he');
     await expect(page.locator('#app')).toHaveAttribute('dir','rtl');
     expect(new URL(page.url()).searchParams.get('lang')).toBe('he');
+    // Let the selected locale's font requests finish before deliberately
+    // navigating away; a navigation-aborted request is not an asset failure.
+    await page.evaluate(()=>document.fonts.ready);
     await page.reload();await expect(page.locator('#app')).toHaveAttribute('data-mode','menu');
     await expect(page.locator('[data-pref=lang]')).toHaveValue('he');
     expect(await page.evaluate(()=>document.documentElement.lang)).toBe('he');
+    await page.evaluate(()=>document.fonts.ready);
     expect(errors).toEqual([]);expect(failed).toEqual([]);expect(badResponses).toEqual([]);expect(external).toEqual([]);
   });
 });

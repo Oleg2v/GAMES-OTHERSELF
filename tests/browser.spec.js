@@ -1,6 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
-import {capture,state,load,start,capturePage,moveTo,possessRole} from './support/browser-game.js';
+import {capture,state,load,start,capturePage,lowQuality} from './support/browser-game.js';
+import {firstPossession,playEpisode} from './support/v2-route.js';
 async function controlsInViewport(page,selector){
   const outside=await page.locator(selector).evaluateAll(els=>els.filter(el=>{
     const r=el.getBoundingClientRect();return r.width&&r.height&&(r.left < -1 || r.right > innerWidth+1 || r.top < -1 || r.bottom > innerHeight+1);
@@ -9,13 +10,14 @@ async function controlsInViewport(page,selector){
 }
 
 test('desktop: movement, possession, language, pause and saved continuation',async({page})=>{
+  test.setTimeout(180000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await load(page);await capturePage(page,'desktop-menu');await start(page);
+  await load(page);await capturePage(page,'desktop-menu');await lowQuality(page);await start(page);
   const initial=await state(page);
   await page.keyboard.down('KeyD');
   await expect.poll(async()=>(await state(page)).nim.x,{message:'Nim must advance while KeyD is held'}).toBeGreaterThan(initial.nim.x+.2);
   await page.keyboard.up('KeyD');
-  await page.keyboard.press('KeyQ');
+  await firstPossession(page);
   await expect.poll(async()=>(await state(page)).controlled).toBe('r0-keeper');
   const controlled=await state(page);
   await page.locator('[data-pref="lang"]').selectOption('he');
@@ -84,7 +86,7 @@ test('emulated touch direction buttons work independently of RTL',async({page})=
 test.describe('reduced-raster software WebGL routes',()=>{
   test.use({deviceScaleFactor:0.5});
 for(const lang of ['ru','en','he']){
-  test(`full episode ${lang}: four halls, two rescues, final bell via real input`,async({page})=>{
+  test(`full episode ${lang}: four vertical halls, two rescues, final bell via real input`,async({page})=>{
     test.setTimeout(600000);
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.setViewportSize({width:640,height:360});await load(page,lang);
@@ -99,21 +101,10 @@ for(const lang of ['ru','en','he']){
       }));
       await mkdir(capture,{recursive:true});await writeFile(`${capture}/performance.json`,JSON.stringify(performanceResult,null,2));console.log('Software WebGL frame timings:',JSON.stringify(performanceResult));
     }
-    for(let room=0;room<4;room++){
-      expect((await state(page)).room).toBe(room);
-      await moveTo(page,room===2?6.4:3.3);
-      await possessRole(page,'keeper');await moveTo(page,20);await page.keyboard.press('KeyE');
-      await expect.poll(async()=>(await state(page)).rooms[room].gateOpen).toBe(true);
-      await moveTo(page,room===2?6.4:2);await page.keyboard.press('KeyQ');
-      await expect.poll(async()=>(await state(page)).controlled).toBeNull();
-      if(room>0){
-        await moveTo(page,10.6);await possessRole(page,'tech');await moveTo(page,34);await page.keyboard.press('KeyQ');
-        await expect.poll(async()=>(await state(page)).controlled).toBeNull();
-      }
-      if(room===1||room===2){await moveTo(page,29.5);await page.keyboard.press('KeyE');await expect.poll(async()=>(await state(page)).rooms[room].rescued).toBe(true);}
-      await moveTo(page,34.5);await capturePage(page,`${lang}-room${room}-complete`);console.log(`${lang}: hall ${room+1} complete at ${(await state(page)).time.toFixed(1)} simulation seconds`);await page.keyboard.press('KeyE');
-      if(room<3)await expect.poll(async()=>(await state(page)).room).toBe(room+1);
-    }
+    await playEpisode(page,{onRoom:async(room,game)=>{
+      await capturePage(page,`${lang}-v2-room${room}-complete`);
+      console.log(`${lang}: v2 hall ${room+1} complete at ${game.time.toFixed(1)} simulation seconds`);
+    }});
     await expect.poll(async()=>(await state(page)).phase).toBe('won');
     expect((await state(page)).rooms.filter(r=>r.rescued).length).toBe(2);
     await expect(page.locator('#app')).toHaveAttribute('data-mode','ending');
