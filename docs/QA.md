@@ -1,8 +1,26 @@
-# Vertical iteration validation — 18 November 2026
+# Validation — 18 November 2026
+
+## Version 2.1: virtual joystick
+
+The control update adds a left thumbstick with proportional speed, an 18% deadzone and dominant-axis hysteresis for ladders, plus round action buttons on the right. It preserves simultaneous movement/action touches and held input across room and language rendering. Pause, cancellation, resize and lost focus clear input. Level rules, art assets and the version 2 save format are unchanged.
+
+**36 Node tests passed**, and the GitHub Pages subpath build passed in **3.45 seconds**. **29 targeted browser cases passed** for this update:
+
+| Group | Cases | Evidence |
+| --- | ---: | --- |
+| Input | 8 | Five new joystick cases cover deadzone, proportional speed, travel clamp, keyboard override, single-pointer ownership, cancellation, ladder direction/hysteresis, pause/resize reset and room/language continuity. Two adapted touch cases include real two-contact movement and jumping, crawling and item actions. The held-key/room/pause/mouse-retry regression also passed. The batch took 1.1 minutes. |
+| Layout and lifecycle | 20 | All 15 RU/EN/HE viewport layouts, four expanded-text RU/HE cases and the desktop movement/possession/language/save lifecycle passed in 4.3 minutes. |
+| Production subpath | 1 | The built site under `/GAMES-OTHERSELF/` passed in 18.7 seconds (20.3 including the runner): a real joystick drag advanced the character and reached normal autosave; jumping, inventory, crawling, reload/continuation and Hebrew switching also passed. No development hook, failed assets, external requests or page exceptions. |
+
+Actual game captures at 320/360/390px portrait and 844×390 landscape were also inspected for controls, labels and scene clearance. [The mobile capture](screenshot-controls.png) and [desktop capture](screenshot-game.png) show the integrated controls. These are Chromium/software-WebGL checks, not physical-phone performance measurements.
+
+The suite now registers **60 browser cases** in total; the full version 2.0 route/ending matrix below was not rerun for this input-only update. Reproduce the five new cases with `BASE_URL=http://127.0.0.1:5174 npx playwright test tests/browser-joystick.spec.js`. The 20-case layout/lifecycle batch uses `npx playwright test tests/browser.spec.js tests/browser-pseudolocale.spec.js --grep 'layout|pseudolocalization|desktop: movement' --workers=2 --fully-parallel` with the same `BASE_URL`. Production staging and its independent browser check are described below.
+
+## Version 2.0: vertical levels
 
 The current iteration adds manual jumping, crawling and ladders, connected elevations, throwable distractions and revised guard behavior. Its route design is described in [LEVEL_DESIGN.md](LEVEL_DESIGN.md). The checks below ran in the development environment; publication status is recorded separately in [DEPLOYMENT.md](DEPLOYMENT.md).
 
-## Current iteration evidence
+### Version 2.0 evidence
 
 The current **36 Node tests passed** (26 engine and 10 localization tests), and the refreshed GitHub Pages subpath build passed in **3.77 seconds** after the final input-focus correction. **All 55 distinct browser cases passed across targeted runs**, including the refreshed production check. The earlier 45-case result below belongs to the flat episode and is not counted as evidence for this iteration.
 
@@ -33,9 +51,9 @@ These timings describe practiced automated paths, not first-time-player pacing. 
 
 The v2 full routes, role/ending fixtures and five isolated physics/save/input-transition cases use Low quality at **640×360 CSS pixels, emulated DPR 0.5 (320×180 raster)** so software rendering can complete the functional checks. The 15 regular layouts and Hebrew **390×844** touch/danger captures use DPR 1. Reduced-raster route images establish traversal and behavior, not final visual quality or hardware performance; no game simulation timestep was accelerated.
 
-## Reproduce the current checks
+### Reproduce the vertical-level checks
 
-`npm test` runs the 36 Node cases. With the development server running, `BASE_URL=http://127.0.0.1:5174 npx playwright test --grep-invert 'production subpath deployment' --workers=2` selects the 54 development-browser cases. The 5174 server used for the final browser runs had hot reload disabled so source-file writes could not reset an active test.
+`npm test` runs the 36 Node cases. With the development server running, `BASE_URL=http://127.0.0.1:5174 npx playwright test --grep-invert 'production subpath deployment' --workers=2` runs the development-browser cases (54 in version 2.0; 59 after the joystick additions). The 5174 server used for the final browser runs had hot reload disabled so source-file writes could not reset an active test.
 
 The tested production staging procedure was:
 

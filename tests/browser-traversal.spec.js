@@ -2,6 +2,7 @@ import {test,expect} from '@playwright/test';
 import {createGame,checkpoint,serialize} from '../src/engine.js';
 import {load,start,lowQuality,state,capturePage} from './support/browser-game.js';
 import {held,walk,climbTo,setCrouch} from './support/v2-route.js';
+import {touchController} from './support/joystick.js';
 
 const browserErrors=new WeakMap();
 test.beforeEach(async({page})=>{
@@ -142,7 +143,7 @@ test('an active detection warning remains readable when a throw emits a transien
   expect((await state(page)).phase).toBe('playing');await capturePage(page,'v2-he-danger-warning-clear');
 });
 
-test('Hebrew touch controls support two-finger running/jumping, crawl, items and ladder directions',async({page})=>{
+test('Hebrew joystick supports two-finger running/jumping, crawl, items and ladder directions',async({page})=>{
   test.setTimeout(180000);
   await page.setViewportSize({width:390,height:844});await load(page,'he');await lowQuality(page);
   await page.locator('[data-command=help]').click();
@@ -151,44 +152,42 @@ test('Hebrew touch controls support two-finger running/jumping, crawl, items and
   const badTargets=await page.locator('.controls-v2 button').evaluateAll(elements=>elements.flatMap(el=>{
     const r=el.getBoundingClientRect();return r.width<43.9||r.height<43.9||r.left<0||r.right>innerWidth||r.bottom>innerHeight?[{control:el.dataset.command||el.dataset.move,rect:r.toJSON()}]:[];
   }));expect(badTargets).toEqual([]);
-  expect((await page.locator('.movement').boundingBox()).x).toBeLessThan((await page.locator('.actions').boundingBox()).x);
-  const cdp=await page.context().newCDPSession(page);
-  await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:2});
-  await page.evaluate(()=>{window.__qaPointerEvents=[];for(const kind of ['pointerdown','pointerup','pointercancel','lostpointercapture'])document.addEventListener(kind,e=>window.__qaPointerEvents.push({kind,id:e.pointerId,control:e.target.closest('button')?.dataset.move||e.target.closest('button')?.dataset.command}),true);});
+  expect((await page.locator('[data-joystick]').boundingBox()).x).toBeLessThan((await page.locator('[data-command=jump]').boundingBox()).x);
+  const touch=await touchController(page);
+  await page.evaluate(()=>{window.__qaPointerEvents=[];for(const kind of ['pointerdown','pointerup','pointercancel','lostpointercapture'])document.addEventListener(kind,e=>window.__qaPointerEvents.push({kind,id:e.pointerId,control:e.target.closest('button')?.dataset.command}),true);});
   async function point(selector,id){const box=await page.locator(selector).boundingBox();return {id,x:box.x+box.width/2,y:box.y+box.height/2};}
-  async function tap(selector){await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[await point(selector,1)]});await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});}
-  async function touchUntil(selector,condition){
-    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[await point(selector,1)]});
+  async function stickUntil(x,y,condition){
+    await touch.stick(x,y);
     try{await page.waitForFunction(condition,null,{timeout:45000,polling:30});}
-    finally{await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});}
+    finally{await touch.end(1);}
   }
   try{
     // Leave enough clear runway for a simultaneous-input assertion before the duct wall.
-    await touchUntil('[data-move=left]',()=>window.__OTHERSELF__.getState().nim.x<=.7);
-    const initial=(await state(page)).nim.x,right=await point('[data-move=right]',1);
-    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[right]});
+    await stickUntil(-1,0,()=>window.__OTHERSELF__.getState().nim.x<=.7);
+    const initial=(await state(page)).nim.x;
+    await touch.stick(1,0);
     await expect.poll(async()=>(await state(page)).nim.x).toBeGreaterThan(initial+.1);
     const jumpContact=await point('[data-command=jump]',2);
-    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[right,jumpContact]});
+    await touch.begin(jumpContact);
     await expect.poll(async()=>(await state(page)).nim.y).toBeGreaterThan(.25);
     // Chromium ends the listed contact IDs; keep the first finger on right.
-    await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[jumpContact]});
-    expect(await page.evaluate(()=>window.__qaPointerEvents.filter(e=>e.kind==='pointerup').at(-1)?.control)).toBe('jump');
+    await touch.end(2);
+    expect(await page.evaluate(()=>window.__qaPointerEvents.filter(e=>e.kind==='pointerup').at(-1)?.id)).toBe(await page.evaluate(()=>window.__qaPointerEvents.find(e=>e.kind==='pointerdown'&&e.control==='jump')?.id));
     const afterJumpFinger=(await state(page)).nim.x;
     await expect.poll(async()=>(await state(page)).nim.x).toBeGreaterThan(afterJumpFinger+.05);
-    await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await touch.end(1);
     await expect.poll(async()=>(await state(page)).nim.grounded).toBe(true);
-    await tap('[data-command=crouch]');await expect(page.locator('[data-command=crouch]')).toHaveAttribute('aria-pressed','true');
-    await tap('[data-command=crouch]');await expect(page.locator('[data-command=crouch]')).toHaveAttribute('aria-pressed','false');
-    await tap('[data-command=throw]');await expect.poll(async()=>(await state(page)).nim.heldItem).not.toBeNull();
-    await tap('[data-command=crouch]');
-    await touchUntil('[data-move=right]',()=>window.__OTHERSELF__.getState().nim.x>=5.8);
-    await tap('[data-command=crouch]');
-    await touchUntil('[data-move=right]',()=>window.__OTHERSELF__.getState().nim.x>=7);
-    await touchUntil('[data-move=up]',()=>window.__OTHERSELF__.getState().nim.y>=1.1);
+    await touch.tap('[data-command=crouch]');await expect(page.locator('[data-command=crouch]')).toHaveAttribute('aria-pressed','true');
+    await touch.tap('[data-command=crouch]');await expect(page.locator('[data-command=crouch]')).toHaveAttribute('aria-pressed','false');
+    await touch.tap('[data-command=throw]');await expect.poll(async()=>(await state(page)).nim.heldItem).not.toBeNull();
+    await touch.tap('[data-command=crouch]');
+    await stickUntil(1,0,()=>window.__OTHERSELF__.getState().nim.x>=5.8);
+    await touch.tap('[data-command=crouch]');
+    await stickUntil(1,0,()=>window.__OTHERSELF__.getState().nim.x>=7);
+    await stickUntil(0,-1,()=>window.__OTHERSELF__.getState().nim.y>=1.1);
     expect((await state(page)).nim.ladderId).toBe('r0-l1');
-    await touchUntil('[data-move=down]',()=>window.__OTHERSELF__.getState().nim.y<=.35);
-    await tap('[data-command=throw]');await expect.poll(async()=>(await state(page)).nim.heldItem).toBeNull();
-    await capturePage(page,'v2-he-mobile-touch-ladder');
-  }finally{await cdp.detach();}
+    await stickUntil(0,1,()=>window.__OTHERSELF__.getState().nim.y<=.35);
+    await touch.tap('[data-command=throw]');await expect.poll(async()=>(await state(page)).nim.heldItem).toBeNull();
+    await capturePage(page,'joystick-he-mobile-touch-ladder');
+  }finally{await touch.detach();}
 });

@@ -2,6 +2,7 @@ import {test,expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {capture,state,load,start,capturePage,lowQuality} from './support/browser-game.js';
 import {firstPossession,playEpisode} from './support/v2-route.js';
+import {touchController} from './support/joystick.js';
 async function controlsInViewport(page,selector){
   const outside=await page.locator(selector).evaluateAll(els=>els.filter(el=>{
     const r=el.getBoundingClientRect();return r.width&&r.height&&(r.left < -1 || r.right > innerWidth+1 || r.top < -1 || r.bottom > innerHeight+1);
@@ -70,17 +71,15 @@ for(const [width,height] of [[360,640],[390,844],[844,390],[768,1024],[1440,900]
   }
 }
 
-test('emulated touch direction buttons work independently of RTL',async({page})=>{
+test('emulated touch joystick works independently of RTL',async({page})=>{
   await page.setViewportSize({width:390,height:844});await load(page,'he');await start(page);
   const before=(await state(page)).nim.x;
-  const right=page.locator('[data-move="right"]');
-  const touch=await page.context().newCDPSession(page),box=await right.boundingBox();
-  await touch.send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:1});
-  await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:box.x+box.width/2,y:box.y+box.height/2}]});
-  await expect.poll(async()=>(await state(page)).nim.x).toBeGreaterThan(before+.1);
-  await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-  expect((await page.locator('.movement').boundingBox()).x).toBeLessThan((await page.locator('.actions').boundingBox()).x);
-  await capturePage(page,'he-390x844-touch-final');await touch.detach();
+  const touch=await touchController(page);
+  try{
+    await touch.stick(1,0);await expect.poll(async()=>(await state(page)).nim.x).toBeGreaterThan(before+.1);await touch.end(1);
+    expect((await page.locator('[data-joystick]').boundingBox()).x).toBeLessThan((await page.locator('[data-command=jump]').boundingBox()).x);
+    await capturePage(page,'he-390x844-joystick-final');
+  }finally{await touch.detach();}
 });
 
 test.describe('reduced-raster software WebGL routes',()=>{

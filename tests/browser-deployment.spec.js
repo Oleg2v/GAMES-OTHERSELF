@@ -5,7 +5,7 @@ const deployment=process.env.DEPLOY_URL;
 test.describe('production subpath deployment',()=>{
   test.skip(!deployment,'Set DEPLOY_URL to the built or published application URL, including its subpath.');
   test.use({viewport:{width:960,height:640},deviceScaleFactor:.5});
-  test('bundled assets, jumping, inventory and saved continuation work without development hooks',async({page})=>{
+  test('bundled assets, joystick, jumping, inventory and saved continuation work without development hooks',async({page})=>{
     test.setTimeout(120000);
     const url=new URL(deployment),prefix=url.pathname.endsWith('/')?url.pathname:`${url.pathname}/`;
     const errors=[],failed=[],assets=[],badResponses=[],external=[];
@@ -36,10 +36,27 @@ test.describe('production subpath deployment',()=>{
     await page.locator('[data-command=crouch]').click();
     await expect(page.locator('[data-command=crouch]')).toHaveAttribute('aria-pressed','true');
     await page.locator('[data-command=pause]').click();
-    const saved=await page.evaluate(()=>localStorage.getItem('otherself.save.v1'));expect(saved).toBeTruthy();
-    expect(JSON.parse(saved).version).toBe(2);
-    expect(JSON.parse(saved).state.milestones.jumped).toBe(true);
-    expect(JSON.parse(saved).state.nim.heldItem).toBeTruthy();
+    const baseline=await page.evaluate(()=>JSON.parse(localStorage.getItem('otherself.save.v1')));expect(baseline).toBeTruthy();
+    expect(baseline.version).toBe(2);
+    expect(baseline.state.milestones.jumped).toBe(true);
+    expect(baseline.state.nim.heldItem).toBeTruthy();
+    await page.locator('[data-command=resume]').click();
+    const stick=await page.locator('[data-joystick]').boundingBox();
+    const center={x:stick.x+stick.width/2,y:stick.y+stick.height/2},radius=Math.min(stick.width,stick.height)*.28;
+    await page.mouse.move(center.x,center.y);await page.mouse.down();
+    try{
+      await page.mouse.move(center.x+radius,center.y,{steps:4});
+      // Wait for the game's normal autosave to expose real movement. This uses
+      // public persisted progress, without a dev hook or a fixed rendering delay.
+      await expect.poll(async()=>page.evaluate(()=>JSON.parse(localStorage.getItem('otherself.save.v1'))?.state?.nim?.x),{
+        timeout:30000,message:'A real joystick drag must advance the production game and reach its autosave',
+      }).toBeGreaterThan(baseline.state.nim.x+.1);
+    }finally{await page.mouse.up();}
+    await page.locator('[data-command=pause]').click();
+    const saved=await page.evaluate(()=>localStorage.getItem('otherself.save.v1'));
+    expect(JSON.parse(saved).state.nim.x).toBeGreaterThan(baseline.state.nim.x+.1);
+    expect(JSON.parse(saved).state.nim.heldItem).toEqual(baseline.state.nim.heldItem);
+    expect(JSON.parse(saved).state.nim.crouching).toBe(true);
     await page.locator('[data-command=exit]').click();await page.reload();
     await expect(page.locator('#app')).toHaveAttribute('data-mode','menu');
     await page.locator('[data-command=continue]').click();

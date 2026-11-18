@@ -1,6 +1,6 @@
 # OTHERSELF / ЧУЖОЕ ТЕЛО / גוף אחר
 
-An original playable 2.5D stealth episode for **Kikkey Games**: four multilevel halls, two borrowable roles, two optional rescues, three endings. Version 2 adds physical jumping, manual crawling, ladders and throwable distractions. Built with Three.js, authored Blender geometry and procedural Web Audio.
+An original playable 2.5D stealth episode for **Kikkey Games**: four multilevel halls, two borrowable roles, two optional rescues, three endings. Version 2 adds physical jumping, manual crawling, ladders and throwable distractions; version 2.1 adds a virtual thumbstick and round action buttons. Built with Three.js, authored Blender geometry and procedural Web Audio.
 
 ![OTHERSELF, actual browser-rendered menu](docs/screenshot-menu.png)
 
@@ -26,11 +26,15 @@ Playwright configuration uses `/usr/bin/chromium` with software WebGL in this cl
 
 ## Controls
 
+![OTHERSELF 2.1, actual browser-rendered thumbstick and action controls](docs/screenshot-controls.png)
+
+On touchscreens, drag the virtual thumbstick on the left: left/right moves with speed proportional to the drag, while up/down climbs nearby ladders. Round buttons on the right handle actions. Multitouch lets you hold the stick with one finger and jump or interact with another; keyboard controls remain available.
+
 - A/D or left/right arrows: movement (physical keyboard codes, unchanged in RTL).
 - Space: jump; C or Control: toggle crawling. Standing up requires sufficient headroom.
 - W/S or up/down arrows: climb a nearby ladder in either direction.
 - F: pick up a nearby metal object, or throw the object in your hand in the direction you face. Its impact attracts nearby guards.
-- E: contextual action; Q: possess / return. Touch controls expose the same actions and support moving while jumping.
+- E: contextual action; Q: possess / return.
 - Escape: pause/resume. Help, journal, settings, retry and exit are accessible through the interface.
 
 Face a worker within six metres; the double amber collar marks your target. Stay connected for 0.6 seconds. Leave Nim in a protected recess: his body remains vulnerable. A keeper can use hand readers; a technician operates gear consoles. Their elevated posts require real routes through the station: climb, use low service passages, cross broken platforms and distract patrols with thrown objects. Only Nim crosses hall boundaries. Rescue the two sail creatures if you wish; the final bell on the upper shuttle deck ends the episode. Backtracking remains possible before ringing it.
@@ -39,7 +43,7 @@ Local save includes room, active body, vertical movement and ladder state, held 
 
 ## Structure and embedding
 
-`src/engine.js` is deterministic world logic, independent of the renderer and browser. `src/scene.js` renders true 3D geometry, `src/audio.js` owns Web Audio, `src/i18n.js` contains complete dictionaries. `src/main.js` exposes `mount(container)`, returning `start`, `pause`, `resume`, `destroy`, `getState`, `getMode`; the standalone bootstrap mounts the local page. Destroy releases listeners, animation frame, audio and GPU resources. CSS is scoped under `.otherself` except the minimal standalone page defaults.
+`src/engine.js` is deterministic world logic, independent of the renderer and browser. `src/scene.js` renders true 3D geometry, `src/audio.js` owns Web Audio, `src/i18n.js` contains complete dictionaries. `src/joystick.js` handles analog thumbstick input and pointer capture. `src/main.js` exposes `mount(container)`, returning `start`, `pause`, `resume`, `destroy`, `getState`, `getMode`; the standalone bootstrap mounts the local page. Destroy releases listeners, animation frame, audio and GPU resources. CSS is scoped under `.otherself` except the minimal standalone page defaults.
 
 Editable Blender files and generators live in `art/`; optimized GLBs and local PBR textures live in `public/assets/`. See [asset provenance](docs/ASSETS.md), [design](docs/DESIGN.md), [vertical level routes](docs/LEVEL_DESIGN.md), [localization/audio notes](docs/LOCALIZATION_AUDIO.md), and [validation/limitations](docs/QA.md).
 
