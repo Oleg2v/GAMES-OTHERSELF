@@ -1,0 +1,97 @@
+{
+  "browser": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+  "variants": [
+    {
+      "endingCount": 0,
+      "sampleRate": 24000,
+      "peak": 0.11699768155813217,
+      "rms": 0.013992996834659308,
+      "nonFinite": 0,
+      "clipped": 0,
+      "samples": 264000
+    },
+    {
+      "endingCount": 1,
+      "sampleRate": 24000,
+      "peak": 0.11699768155813217,
+      "rms": 0.016322589858055684,
+      "nonFinite": 0,
+      "clipped": 0,
+      "samples": 264000
+    },
+    {
+      "endingCount": 2,
+      "sampleRate": 24000,
+      "peak": 0.11699768155813217,
+      "rms": 0.01873173155533722,
+      "nonFinite": 0,
+      "clipped": 0,
+      "samples": 264000
+    }
+  ],
+  "identicalBeforeReply": {
+    "peak": 1.4901161193847656e-08,
+    "rms": 1.2761837160888236e-09,
+    "nonFinite": 0,
+    "clipped": 0,
+    "samples": 67200
+  },
+  "firstVoice": {
+    "peak": 0.0739440768957138,
+    "rms": 0.025491635549541796,
+    "nonFinite": 0,
+    "clipped": 0,
+    "samples": 28800
+  },
+  "identicalBeforeSecondReply": {
+    "peak": 1.4901161193847656e-08,
+    "rms": 1.2508414154252453e-09,
+    "nonFinite": 0,
+    "clipped": 0,
+    "samples": 103200
+  },
+  "secondVoice": {
+    "peak": 0.07329380512237549,
+    "rms": 0.02778011937043706,
+    "nonFinite": 0,
+    "clipped": 0,
+    "samples": 28800
+  },
+  "muted": {
+    "peak": 0,
+    "rms": 0,
+    "nonFinite": 0,
+    "clipped": 0,
+    "samples": 264000
+  },
+  "busesOff": {
+    "peak": 0,
+    "rms": 0,
+    "nonFinite": 0,
+    "clipped": 0,
+    "samples": 264000
+  },
+  "musicOnly": {
+    "peak": 0.05571535974740982,
+    "rms": 0.00828373559209759,
+    "nonFinite": 0,
+    "clipped": 0,
+    "samples": 264000
+  },
+  "effectsOnly": {
+    "peak": 0.17486867308616638,
+    "rms": 0.028224918241943103,
+    "nonFinite": 0,
+    "clipped": 0,
+    "samples": 264000
+  },
+  "stressed": {
+    "peak": 0.19839805364608765,
+    "rms": 0.029481841738672895,
+    "nonFinite": 0,
+    "clipped": 0,
+    "samples": 264000
+  },
+  "validated": "2026-11-18",
+  "method": "OfflineAudioContext renders the actual src/audio.js graph, 11 seconds mono at 24 kHz; Chromium 156. This establishes signal properties, not human listening comfort."
+}
