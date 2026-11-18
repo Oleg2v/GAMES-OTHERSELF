@@ -1,5 +1,22 @@
 # Validation — 18 November 2026
 
+## Version 2.2: control usability
+
+Controls now use distinct SVG icons, contextual action names and visible ready/active/locked states. Mobile action targets are at least 56px, possession and the contextual action are 64px, and jump is 76px. Labels are 10–11px. Layout stays physically consistent across languages; touch hints omit keyboard badges. Unavailable actions explain their reason, and Space/Enter activate a focused button normally. Mouse/touch action use restores game focus. Engine rules, save format and joystick physics are unchanged.
+
+**36 Node tests passed**, and the GitHub Pages subpath build passed in **2.92 seconds**. **33 targeted browser cases passed**: the 12-case focused batch took 1.6 minutes, the 20-case layout/lifecycle batch took 4.3 minutes, and the production check took 20.2 seconds (21.5 including the runner).
+
+| Group | Cases | Evidence |
+| --- | ---: | --- |
+| New control UX | 4 | Valid saved-position fixtures test ladder guidance and actual door/rescue/exit actions; unavailable actions through both keyboard and touch explain the reason without changing the world; native focused-button Space/Enter and mouse focus work; six RU/EN/HE × 320px portrait/844px landscape combinations pass target sizing, separation, hit testing, bounds and fixed-position checks. No page/console errors. These fixtures are not additional complete playthroughs. |
+| Existing input regressions | 8 | Five joystick cases, both single/multiple-contact touch cases and the held-key/room/pause/mouse-retry regression passed again. |
+| Layout and lifecycle | 20 | All 15 RU/EN/HE viewport layouts, four expanded-text RU/HE cases and the desktop movement/possession/language/save lifecycle passed. |
+| Production subpath | 1 | The final built bundle under `/GAMES-OTHERSELF/` passed real joystick movement, jumping, inventory, crawling, save/reload and Hebrew switching without a development hook, failed assets, external requests or page exceptions. Local staging used port 4185 and `/tmp/otherself-v22-release/`. |
+
+Actual screenshots at five viewport sizes in RU/EN/HE were also inspected. The final 64px possession button was recaptured at 320/390px after correcting an orphaned final letter in the Russian label. [Mobile](screenshot-controls.png) and [desktop](screenshot-game.png) captures show the current integrated UI after the initial checkpoint toast expires. These are Chromium/software-WebGL checks, not physical-phone performance measurements.
+
+The suite now registers **64 browser cases** in total. Complete route and ending coverage from version 2.0 below is historical evidence and was not rerun for this UI update. Run the four new cases with `BASE_URL=http://127.0.0.1:5174 npx playwright test tests/browser-controls-ux.spec.js`; the existing layout and production commands below also apply.
+
 ## Version 2.1: virtual joystick
 
 The control update adds a left thumbstick with proportional speed, an 18% deadzone and dominant-axis hysteresis for ladders, plus round action buttons on the right. It preserves simultaneous movement/action touches and held input across room and language rendering. Pause, cancellation, resize and lost focus clear input. Level rules, art assets and the version 2 save format are unchanged.
@@ -14,7 +31,7 @@ The control update adds a left thumbstick with proportional speed, an 18% deadzo
 
 Actual game captures at 320/360/390px portrait and 844×390 landscape were also inspected for controls, labels and scene clearance. [The mobile capture](screenshot-controls.png) and [desktop capture](screenshot-game.png) show the integrated controls. These are Chromium/software-WebGL checks, not physical-phone performance measurements.
 
-The suite now registers **60 browser cases** in total; the full version 2.0 route/ending matrix below was not rerun for this input-only update. Reproduce the five new cases with `BASE_URL=http://127.0.0.1:5174 npx playwright test tests/browser-joystick.spec.js`. The 20-case layout/lifecycle batch uses `npx playwright test tests/browser.spec.js tests/browser-pseudolocale.spec.js --grep 'layout|pseudolocalization|desktop: movement' --workers=2 --fully-parallel` with the same `BASE_URL`. Production staging and its independent browser check are described below.
+Version 2.1 registered **60 browser cases** in total; the full version 2.0 route/ending matrix below was not rerun for that input-only update. Reproduce the five new cases with `BASE_URL=http://127.0.0.1:5174 npx playwright test tests/browser-joystick.spec.js`. The 20-case layout/lifecycle batch uses `npx playwright test tests/browser.spec.js tests/browser-pseudolocale.spec.js --grep 'layout|pseudolocalization|desktop: movement' --workers=2 --fully-parallel` with the same `BASE_URL`. Production staging and its independent browser check are described below.
 
 ## Version 2.0: vertical levels
 
@@ -53,7 +70,7 @@ The v2 full routes, role/ending fixtures and five isolated physics/save/input-tr
 
 ### Reproduce the vertical-level checks
 
-`npm test` runs the 36 Node cases. With the development server running, `BASE_URL=http://127.0.0.1:5174 npx playwright test --grep-invert 'production subpath deployment' --workers=2` runs the development-browser cases (54 in version 2.0; 59 after the joystick additions). The 5174 server used for the final browser runs had hot reload disabled so source-file writes could not reset an active test.
+`npm test` runs the 36 Node cases. With the development server running, `BASE_URL=http://127.0.0.1:5174 npx playwright test --grep-invert 'production subpath deployment' --workers=2` runs the development-browser cases (54 in version 2.0; 59 in 2.1; 63 in 2.2). The 5174 server used for the final browser runs had hot reload disabled so source-file writes could not reset an active test.
 
 The tested production staging procedure was:
 

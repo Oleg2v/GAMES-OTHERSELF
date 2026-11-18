@@ -5,8 +5,8 @@
 .otherself .controls-v2.gamepad-controls{
   --stick-size:140px;
   --knob-size:64px;
-  --cluster-width:208px;
-  --cluster-height:172px;
+  --cluster-width:228px;
+  --cluster-height:206px;
   position:absolute;
   left:max(3.5%,env(safe-area-inset-left));
   right:max(3.5%,env(safe-area-inset-right));
@@ -102,11 +102,11 @@
   bottom:0;
   left:0;
   width:100%;
-  font-size:8px;
-  letter-spacing:1px;
+  font-size:10px;
+  letter-spacing:0;
   white-space:nowrap;
   text-align:center;
-  color:#afc2ae8f;
+  color:#b5c8b5ba;
   line-height:1;
   pointer-events:none;
 }
@@ -118,55 +118,67 @@
   flex:0 0 var(--cluster-width);
   direction:ltr;
 }
+/* Stable five-button fan: hierarchy comes from size, shape details and labels. */
 .otherself .controls-v2.gamepad-controls .action-button{
   position:absolute;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  width:58px;
-  height:58px;
+  width:68px;
+  height:68px;
   min-width:0;
   min-height:0;
   max-width:none;
-  padding:8px 5px 14px;
-  gap:3px;
-  border:1px solid #aecbb94f;
+  padding:2px 4px 13px;
+  gap:2px;
+  border:1px solid #aecbb96b;
   border-radius:50%;
-  background:radial-gradient(circle at 38% 20%,#2b4340e8,#102629e6 75%);
-  box-shadow:inset 0 1px 2px #deedc518,inset 0 -3px 7px #00151b66,0 5px 15px #0004;
+  background:radial-gradient(circle at 38% 20%,#2b4340f2,#102629ed 75%);
+  box-shadow:inset 0 1px 2px #deedc522,inset 0 -3px 7px #00151b66,0 5px 15px #0004;
   backdrop-filter:blur(7px);
   -webkit-backdrop-filter:blur(7px);
-  color:#d3ddca;
-  font-size:9px;
-  line-height:1.15;
+  color:#e0e6d7;
+  font-size:10.5px;
+  line-height:1.05;
   text-align:center;
   touch-action:none;
   transform:none;
-  transition:border-color .15s,background .15s,box-shadow .15s;
+  transition:border-color .12s,background .12s,box-shadow .12s,transform .12s;
 }
-.otherself .controls-v2.gamepad-controls .action-button>span:first-child{color:#c2cead;font-size:22px;line-height:1}
-.otherself .controls-v2.gamepad-controls .action-button>span:last-child{max-width:100%;overflow-wrap:anywhere;font-weight:500}
+.otherself .controls-v2.gamepad-controls .action-button>span:first-child{display:flex;align-items:center;justify-content:center;color:#d1dac0;font-size:24px;line-height:1;flex-shrink:0;position:relative}
+.otherself .controls-v2.gamepad-controls .action-button>span:last-child{max-width:100%;overflow-wrap:anywhere;white-space:normal;text-wrap:balance;font-weight:600}
+.otherself .controls-v2.gamepad-controls .action-button .control-icon{display:block;width:24px;height:24px;flex-shrink:0;transition:transform .12s}
+.otherself .icon-button .control-icon{display:block;width:22px;height:22px;flex-shrink:0}
 .otherself .controls-v2.gamepad-controls .action-button::after{
   content:attr(aria-keyshortcuts);
   position:absolute;
-  bottom:5px;
-  color:#9aafa08f;
-  font:7px Manrope,sans-serif;
-  letter-spacing:.6px;
+  bottom:4px;
+  color:#b6c8b8b8;
+  font:9px Manrope,sans-serif;
+  letter-spacing:.3px;
 }
-.otherself .controls-v2.gamepad-controls [data-command=throw]{left:0;top:58px}
-.otherself .controls-v2.gamepad-controls [data-command=possess]{left:57px;top:0}
-.otherself .controls-v2.gamepad-controls [data-command=crouch]{left:49px;bottom:0}
-.otherself .controls-v2.gamepad-controls [data-command=action]{right:0;top:17px;width:66px;height:66px;border-color:#b3d0b776;background:radial-gradient(circle at 35% 20%,#43584ae8,#1b3835ed 75%)}
-.otherself .controls-v2.gamepad-controls [data-command=jump]{right:4px;bottom:0;width:76px;height:76px;border-color:#e6be8fba;color:#ffe0b7;background:radial-gradient(circle at 35% 20%,#80654adb,#4b4438eb 70%);box-shadow:inset 0 1px 3px #ffe5b82a,inset 0 -3px 9px #17242670,0 6px 24px #0005,0 0 0 4px #ddb18209;font-size:10px}
-.otherself .controls-v2.gamepad-controls [data-command=jump]>span:first-child{font-size:28px;color:#f5c38d}
-.otherself .controls-v2.gamepad-controls .action-button.available,.otherself .controls-v2.gamepad-controls .action-button[aria-pressed=true]{border-color:#f0bc81c9;color:#ffe2b9;background:radial-gradient(circle at 35% 20%,#685f42ec,#39443aed 75%);box-shadow:inset 0 1px 2px #ffe6ba25,0 0 0 3px #d5b47a0b,0 0 18px #dfae7a16,0 5px 15px #0004}
-.otherself .controls-v2.gamepad-controls .action-button.available>span:first-child,.otherself .controls-v2.gamepad-controls .action-button[aria-pressed=true]>span:first-child{color:#f4c58d}
-.otherself .controls-v2.gamepad-controls .action-button[aria-pressed=true]::before{content:"";position:absolute;top:5px;width:3px;height:3px;background:#ffd69c;border-radius:50%;box-shadow:0 0 7px #ffd69c}
-.otherself .controls-v2.gamepad-controls .action-button:active,.otherself .controls-v2.gamepad-controls .action-button[data-pressed=true]{transform:none;background:#a8865ae8;border-color:#ffe1b7;color:#fff0d7;box-shadow:inset 0 3px 12px #222e3277,0 0 18px #e4bc7a22}
-.otherself .controls-v2.gamepad-controls button:disabled{opacity:.36;cursor:default}
-.otherself .controls-v2.gamepad-controls button:focus-visible{outline:2px solid #f2c693;outline-offset:5px}
+.otherself .controls-v2.gamepad-controls [data-command=throw]{left:0;top:70px}
+.otherself .controls-v2.gamepad-controls [data-command=possess]{left:62px;top:0}
+.otherself .controls-v2.gamepad-controls [data-command=crouch]{left:54px;bottom:0}
+.otherself .controls-v2.gamepad-controls [data-command=action]{right:0;top:24px;width:76px;height:76px;border-color:#c3d7bfa8;background:radial-gradient(circle at 35% 20%,#43584af2,#1b3835f2 75%)}
+.otherself .controls-v2.gamepad-controls [data-command=jump]{right:0;bottom:0;width:88px;height:88px;border:2px solid #e6be8fd6;color:#ffe4c2;background:radial-gradient(circle at 35% 20%,#80654af2,#4b4438f5 70%);box-shadow:inset 0 1px 3px #ffe5b82a,inset 0 -3px 9px #17242670,0 6px 24px #0005,0 0 0 4px #ddb18209;font-size:11px}
+.otherself .controls-v2.gamepad-controls [data-command=jump]>span:first-child{font-size:28px;color:#ffd29d}
+.otherself .controls-v2.gamepad-controls [data-command=jump] .control-icon{width:28px;height:28px}
+
+/* Ready: doubled rim and diamond. Toggled: check mark. Locked: broken rim and lock. */
+.otherself .controls-v2.gamepad-controls .action-button.available,.otherself .controls-v2.gamepad-controls .action-button[data-state=ready]{border:2px solid #e9be8dc9;color:#ffe5c3;background:radial-gradient(circle at 35% 20%,#5e5d45f2,#34473ff2 75%);box-shadow:inset 0 0 0 3px #dcbf8c18,inset 0 1px 2px #ffe6ba25,0 0 18px #dfae7a12,0 5px 15px #0004}
+.otherself .controls-v2.gamepad-controls .action-button.available::before,.otherself .controls-v2.gamepad-controls .action-button[data-state=ready]::before{content:"";position:absolute;right:7px;top:3px;width:7px;height:7px;border:1.5px solid #f8d7a6;background:#3d493d;transform:rotate(45deg);pointer-events:none}
+.otherself .controls-v2.gamepad-controls .jump-button[data-state=ready]{border-color:#f3ce97;background:radial-gradient(circle at 35% 20%,#89704ef2,#534b3cf5 75%)}
+.otherself .controls-v2.gamepad-controls .action-button[data-state=active],.otherself .controls-v2.gamepad-controls .action-button[aria-pressed=true]{border:2px solid #f5d29c;color:#fff0d3;background:radial-gradient(circle at 35% 20%,#737452f2,#3d5545f5 75%);box-shadow:inset 0 0 0 3px #f8d9a62a,inset 0 2px 8px #0d28294d,0 0 18px #dfae7a1c,0 5px 15px #0004}
+.otherself .controls-v2.gamepad-controls .action-button[data-state=active]::before,.otherself .controls-v2.gamepad-controls .action-button[aria-pressed=true]::before{content:"";position:absolute;right:8px;top:1px;width:7px;height:12px;border:0;border-bottom:2px solid #fff0c5;border-right:2px solid #fff0c5;background:none;transform:rotate(42deg);pointer-events:none}
+.otherself .controls-v2.gamepad-controls [data-command=possess][data-state=active]{border-color:transparent;background:linear-gradient(#385247,#253f39) padding-box,conic-gradient(from -90deg,#f9d6a1 var(--link-progress,100%),#658c7899 0) border-box}
+.otherself .controls-v2.gamepad-controls .action-button[data-state=locked],.otherself .controls-v2.gamepad-controls .action-button[aria-disabled=true],.otherself .controls-v2.gamepad-controls .action-button:disabled{opacity:.58;border:1px dashed #afc1b1a6;background:#152b2de8;box-shadow:inset 0 1px 4px #071b2280;color:#bdc8bb;cursor:not-allowed}
+.otherself .controls-v2.gamepad-controls .action-button[data-state=locked]::before,.otherself .controls-v2.gamepad-controls .action-button[aria-disabled=true]::before,.otherself .controls-v2.gamepad-controls .action-button:disabled::before{content:"";position:absolute;right:6px;top:6px;width:8px;height:10px;border:1.5px solid currentColor;border-radius:4px 4px 2px 2px;background:linear-gradient(currentColor,currentColor) bottom/100% 5px no-repeat;transform:none;pointer-events:none}
+.otherself .controls-v2.gamepad-controls .action-button:active,.otherself .controls-v2.gamepad-controls .action-button[data-pressed=true],.otherself .controls-v2.gamepad-controls .action-button[data-feedback=true]{transform:translateY(2px);background:#8f7954f5;border-color:#ffe1b7;color:#fff4e0;box-shadow:inset 0 4px 13px #182c3199,inset 0 0 0 2px #ffe4bc3b,0 1px 4px #00131980}
+.otherself .controls-v2.gamepad-controls .action-button:active .control-icon,.otherself .controls-v2.gamepad-controls .action-button[data-pressed=true] .control-icon,.otherself .controls-v2.gamepad-controls .action-button[data-feedback=true] .control-icon{transform:scale(.91)}
+.otherself .controls-v2.gamepad-controls button:focus-visible{outline:3px solid #ffe3ad;outline-offset:5px;box-shadow:0 0 0 8px #102a2de0}
+.otherself[data-input=touch] .controls-v2.gamepad-controls .action-button::after{display:none}
 .otherself .controls-v2.gamepad-controls .hint{max-width:300px;padding:0 10px 22px;direction:inherit}
 .otherself[dir=rtl] .controls-v2.gamepad-controls .hint,.otherself[dir=rtl] .controls-v2.gamepad-controls .action-button>span:last-child{direction:rtl}
 
@@ -174,7 +186,12 @@
 .otherself .equipment-status{position:absolute;top:216px;inset-inline-end:3.5%;display:flex;align-items:center;gap:7px;color:#acbeb4;font-size:10px;max-width:280px;flex-wrap:wrap;justify-content:flex-end}
 .otherself .equipment-icon{color:#f1b87b;font-size:18px}
 .otherself .equipment-status .elevation{border-inline-start:1px solid #a5c8bd45;padding-inline-start:9px;font:10px Manrope,Heebo,sans-serif;direction:ltr}
-.otherself .context-label{width:max-content;bottom:190px;border-radius:4px;max-width:min(460px,90%);line-height:1.55;pointer-events:none}
+.otherself .context-label{display:flex;align-items:center;justify-content:center;gap:8px;width:max-content;bottom:190px;border-radius:4px;max-width:min(460px,90%);line-height:1.55;pointer-events:none}
+.otherself .context-label:empty{display:none}
+.otherself .context-label .context-text{min-width:0}
+.otherself .context-label .context-key{display:none;align-items:center;justify-content:center;min-width:22px;height:22px;margin:0;padding:0 5px;border:1px solid #e3c09666;border-radius:4px;color:#f4d9b8;font:10px Manrope,sans-serif;line-height:1;box-shadow:0 2px 0 #081b1e99;flex-shrink:0}
+.otherself[data-input=keyboard] .context-label .context-key:not([hidden]){display:inline-flex}
+.otherself[data-input=touch] .context-label .context-key{display:none}
 .otherself[data-mode=game][data-alert=true] .toast{display:none}
 .otherself .tutorial-card{bottom:205px;max-width:285px;border-radius:0 4px 4px 0}
 .otherself[data-mode=game] .vignette,.otherself[data-mode=paused] .vignette{background:linear-gradient(0deg,#071519e6,transparent 28%,transparent 76%,#071519c9)}
@@ -187,26 +204,26 @@
   .otherself .equipment-status{top:190px}
 }
 @media(max-width:900px){
-  .otherself .controls-v2.gamepad-controls{--stick-size:128px;--knob-size:60px;--cluster-width:174px;--cluster-height:156px;gap:10px}
-  .otherself .controls-v2.gamepad-controls .action-button{width:52px;height:52px;padding:6px 4px;gap:3px;font-size:9px}
-  .otherself .controls-v2.gamepad-controls .action-button>span:first-child{font-size:21px}
+  .otherself .controls-v2.gamepad-controls{--stick-size:128px;--knob-size:60px;--cluster-width:188px;--cluster-height:175px;gap:8px}
+  .otherself .controls-v2.gamepad-controls .action-button{width:56px;height:56px;padding:1px 3px;gap:2px;font-size:10px}
+  .otherself .controls-v2.gamepad-controls .action-button>span:first-child{font-size:24px}
   .otherself .controls-v2.gamepad-controls .action-button::after{display:none}
-  .otherself .controls-v2.gamepad-controls [data-command=throw]{left:0;top:50px}
-  .otherself .controls-v2.gamepad-controls [data-command=possess]{left:45px;top:0;width:54px;height:54px}
-  .otherself .controls-v2.gamepad-controls [data-command=crouch]{left:40px;bottom:0}
-  .otherself .controls-v2.gamepad-controls [data-command=action]{right:0;top:10px;width:60px;height:60px}
-  .otherself .controls-v2.gamepad-controls [data-command=jump]{right:0;bottom:0;width:68px;height:68px;font-size:9px}
-  .otherself .controls-v2.gamepad-controls [data-command=jump]>span:first-child{font-size:27px}
+  .otherself .controls-v2.gamepad-controls [data-command=throw]{left:0;top:54px}
+  .otherself .controls-v2.gamepad-controls [data-command=possess]{left:52px;top:0;width:64px;height:64px}
+  .otherself .controls-v2.gamepad-controls [data-command=crouch]{left:44px;bottom:0}
+  .otherself .controls-v2.gamepad-controls [data-command=action]{right:0;top:16px;width:64px;height:64px}
+  .otherself .controls-v2.gamepad-controls [data-command=jump]{right:0;bottom:1px;width:76px;height:76px;font-size:11px}
+  .otherself .controls-v2.gamepad-controls [data-command=jump]>span:first-child{font-size:28px}
   .otherself .controls-v2.gamepad-controls .hint{display:none}
-  .otherself .context-label{bottom:186px}
-  .otherself .tutorial-card{bottom:232px;max-width:240px}
+  .otherself .context-label{bottom:calc(185px + max(22px,env(safe-area-inset-bottom)))}
+  .otherself .tutorial-card{bottom:253px;max-width:240px}
 }
 @media(max-width:560px){
   .otherself .controls-v2.gamepad-controls{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom))}
   .otherself .equipment-status{top:187px;inset-inline-end:15px;max-width:65%;font-size:9px}
   .otherself .equipment-status .elevation{font-size:9px}
   .otherself .tutorial-card{top:220px;bottom:auto;inset-inline:15px;max-width:none;font-size:10px;padding:8px 10px}
-  .otherself .context-label{bottom:calc(166px + max(14px,env(safe-area-inset-bottom)));font-size:10px;min-width:0;max-width:calc(100% - 30px);padding:7px 12px}
+  .otherself .context-label{bottom:calc(185px + max(14px,env(safe-area-inset-bottom)));font-size:10px;min-width:0;max-width:calc(100% - 30px);padding:7px 12px}
   .otherself[data-mode=game] .toast{top:220px;width:calc(100% - 30px);max-width:none}
   .otherself[data-mode=game]:has(.toast.visible) .tutorial-card{visibility:hidden}
   .otherself .help-keys{grid-template-columns:1fr}
@@ -214,8 +231,9 @@
 @media(max-width:360px){
   .otherself .room-label h2{max-width:80px}
   .otherself .room-index small{display:none}
-  .otherself .controls-v2.gamepad-controls{--stick-size:116px;--knob-size:58px;left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));gap:10px}
+  .otherself .controls-v2.gamepad-controls{--stick-size:116px;--knob-size:60px;left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));gap:8px}
 }
+@media(max-width:340px){.otherself .controls-v2.gamepad-controls{--stick-size:104px;--knob-size:56px}.otherself .controls-v2.gamepad-controls .joystick-caption{font-size:9px}}
 @media(max-height:550px) and (min-width:561px){
   .otherself .game-header{height:58px}
   .otherself .game-objective{top:64px;max-width:240px}
@@ -234,4 +252,4 @@
   .otherself .danger-banner{top:25%;font-size:10px}
   .otherself .toast{top:23%;font-size:10px;padding:8px 12px}
 }
-@media(prefers-reduced-motion:reduce){.otherself .controls-v2.gamepad-controls button{transition:none}}
+@media(prefers-reduced-motion:reduce){.otherself .controls-v2.gamepad-controls button,.otherself .controls-v2.gamepad-controls .control-icon{transition:none}}
