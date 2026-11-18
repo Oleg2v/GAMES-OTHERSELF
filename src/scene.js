@@ -330,6 +330,7 @@ export async function createScene(container, options = {}) {
     box(bridge, m.dark, 0, 1.8, .6, 9, .14, 2.2);
     for (const x of [-4.3, 4.3]) box(bridge, m.steel, x, .9, -.4, .1, 1.8, .1);
     let cart = null, dockShip = null, windVane = null, conveyor = null;
+    const endingLights=[];
     let crate = null, sail = null;
     if (Number.isFinite(cfg.crateX)) {
       crate = new THREE.Group(); p.add(crate); crate.position.set(cfg.crateX, 0, .25);
@@ -411,6 +412,26 @@ export async function createScene(container, options = {}) {
       box(dockShip, m.amber, 35.4, 3, -1.45, .1, 4.9, .1);
       box(dockShip,m.steel,34,.1,-.7,5,.2,3.1);
       box(dockShip,m.dark,34,2.1,-1.2,3.1,4.2,.3);
+      // The open hatch has real frame depth and a distant coastal horizon.
+      const coastCanvas=document.createElement('canvas');coastCanvas.width=128;coastCanvas.height=256;
+      const cc=coastCanvas.getContext('2d'),sky=cc.createLinearGradient(0,0,0,256);
+      sky.addColorStop(0,'#10262e');sky.addColorStop(.48,'#244e55');sky.addColorStop(.56,'#577f7c');sky.addColorStop(.59,'#204b51');sky.addColorStop(1,'#102d35');cc.fillStyle=sky;cc.fillRect(0,0,128,256);
+      cc.strokeStyle='rgba(162,207,190,.16)';cc.lineWidth=1;for(let line=0;line<18;line++){const y=151+line*5;cc.beginPath();cc.moveTo((line*29)%100,y);cc.lineTo(Math.min(128,(line*29)%100+15+line*2),y);cc.stroke();}
+      const coastTexture=new THREE.CanvasTexture(coastCanvas);coastTexture.colorSpace=THREE.SRGBColorSpace;textures.add(coastTexture);
+      const coastMaterial=new THREE.MeshBasicMaterial({map:coastTexture});materials.add(coastMaterial);
+      mesh(geo.plane,coastMaterial,34,2.15,-1.025,2.9,4,1,dockShip);
+      for(const sign of [-1,1]){
+        const x=34+sign*1.62;
+        box(dockShip,m.steel,x,2.2,-.8,.28,4.45,.45);
+        box(dockShip,m.rust,x-sign*.16,2.2,-.53,.07,4.25,.06);
+        box(dockShip,m.dimAmber,x-sign*.23,2.15,-.55,.028,3.65,.04);
+        for(let y=.45;y<4.2;y+=.48){const rivet=mesh(geo.cylinder,m.ivory,x,y,-.53,.045,.05,.045,dockShip);rivet.rotation.x=Math.PI/2;}
+        for(const y of [1.05,3.25]){box(dockShip,m.rust,x+sign*.09,y,-.52,.34,.26,.22);const hinge=mesh(geo.cylinder,m.steel,x+sign*.22,y,-.4,.09,.4,.09,dockShip);}
+      }
+      for(const y of [.15,4.4]){box(dockShip,m.steel,34,y,-.79,3.55,.28,.42);box(dockShip,m.rust,34,y,-.53,3.38,.07,.04);}
+      box(dockShip,m.dimAmber,34,4.16,-.52,2.85,.045,.05);
+      const faceLight=new THREE.PointLight(0xffbd7c,7,6,2);faceLight.position.set(32.9,2.8,1.5);faceLight.visible=false;dockShip.add(faceLight);endingLights.push(faceLight);
+      const edgeLight=new THREE.PointLight(0x70d7ce,4,5,2);edgeLight.position.set(35.4,2.2,-.2);edgeLight.visible=false;dockShip.add(edgeLight);endingLights.push(edgeLight);
       const netLines=[];for(let i=0;i<9;i++){netLines.push([32.8+i*.3,2.4,-.8,.014,1.3,.02]);netLines.push([34,1.8+i*.15,-.8,2.5,.014,.02]);}instanceBoxes(dockShip,m.ivory,netLines);
       curvePipe(dockShip,[[32,1,-.5],[32,4.1,-.5],[34,4.4,-.5],[36,4.1,-.5],[36,1,-.5]],.09,m.rust);
       const reel = mesh(geo.cylinder, m.rust, 6, -.5, 3.2, 1.1, 2.7, 1.1, p); reel.rotation.z = Math.PI / 2; markForeground(reel,4.4,7.6);
@@ -424,7 +445,7 @@ export async function createScene(container, options = {}) {
     batchStatic(gate);batchStatic(bridge);batchStatic(tech,new Set([wheel]));batchStatic(ship);
     if(crate)batchStatic(crate);if(bell)batchStatic(bell);if(windVane)batchStatic(windVane);
     if(conveyor)conveyor.children.forEach(bag=>batchStatic(bag));
-    const data = { gate, latch, wheel, bridge, cart, crate, sail, ship, bell, dockShip, windVane, conveyor, foreground, reflections, guards: new Map() }; roomVisuals.push(data);
+    const data = { gate, latch, wheel, bridge, cart, crate, sail, ship, bell, dockShip, endingLights, windVane, conveyor, foreground, reflections, guards: new Map() }; roomVisuals.push(data);
     return data;
   }
   for (let i = 0; i < ROOMS.length; i++) { makeRoom(i); options.onProgress?.(.15 + i * .1); }
@@ -714,6 +735,7 @@ export async function createScene(container, options = {}) {
     endingSails.forEach((creature,i)=>{creature.visible=i<rescued;creature.rotation.y=.3+(reduced?0:Math.sin(elapsed*.8+i)*.1);creature.position.y=2.2+(reduced?0:Math.sin(elapsed*1.6+i)*.08);});
     drop.visible=false;
     if(room===3&&visual.dockShip) {
+      visual.endingLights.forEach(light=>light.visible=!!ending);
       const time=ending?.time??0;
       const departure=ending&&!reduced?Math.max(0,time-5)*1.35:0;
       visual.dockShip.position.set(departure,ending&&!reduced?Math.max(0,time-5)*.035:0,-departure*.22);
