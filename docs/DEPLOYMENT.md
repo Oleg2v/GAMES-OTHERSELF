@@ -15,3 +15,9 @@ npm run build -- --base=/GAMES-OTHERSELF/
 ```
 
 Verify the final site by its full repository path, including script/style/font/GLB responses, menu/start/possession, language switching and browser refresh. Do not use the development-state test hook to validate a production deployment.
+
+## Publication status
+
+Source code and the workflow have been pushed to `main`. GitHub completed the build job, but its deployment job reports `Get Pages site failed: Not Found`: Pages has not yet been enabled for this repository. The managed cloud network currently blocks the GitHub API needed to enable it programmatically.
+
+The repository owner can open [Settings → Pages](https://github.com/Oleg2v/GAMES-OTHERSELF/settings/pages) and select **Build and deployment → Source → GitHub Actions**. After that, rerun the publishing workflow or push the next commit to `main`. The source and generated artifact are already prepared; no Kikkey DNS changes are required. Public publication is not claimed until the deployment succeeds.

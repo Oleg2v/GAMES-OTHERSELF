@@ -108,7 +108,7 @@ test.describe('presentation and saved-state acceptance',()=>{
     await restoreFixture(page,threatenedBody(),'he');
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect(page.getByRole('dialog')).toContainText(t('he','lostBody'));
-    expect((await state(page)).loss.key).toBe('bodyFound');
+    expect((await state(page)).loss.key).toBe('bodyFound');await capturePage(page,'acceptance-body-found-final');
     await page.locator('[data-command=retry]').click();
     await expect(page.locator('#app')).toHaveAttribute('data-mode','game');
     expect((await state(page)).nim.x).toBe(10.6);expect((await state(page)).controlled).toBeNull();

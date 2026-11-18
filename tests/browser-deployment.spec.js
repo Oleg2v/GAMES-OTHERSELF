@@ -41,6 +41,13 @@ test.describe('production subpath deployment',()=>{
     const restored=await page.evaluate(()=>JSON.parse(localStorage.getItem('otherself.save.v1')));
     expect(restored.state.controlled).toBe(JSON.parse(saved).state.controlled);
     expect(restored.state.nim).toEqual(JSON.parse(saved).state.nim);
+    await page.locator('[data-command=resume]').click();
+    await page.locator('[data-pref=lang]').selectOption('he');
+    await expect(page.locator('#app')).toHaveAttribute('dir','rtl');
+    expect(new URL(page.url()).searchParams.get('lang')).toBe('he');
+    await page.reload();await expect(page.locator('#app')).toHaveAttribute('data-mode','menu');
+    await expect(page.locator('[data-pref=lang]')).toHaveValue('he');
+    expect(await page.evaluate(()=>document.documentElement.lang)).toBe('he');
     expect(errors).toEqual([]);expect(failed).toEqual([]);expect(badResponses).toEqual([]);expect(external).toEqual([]);
   });
 });
