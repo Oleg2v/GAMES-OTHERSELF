@@ -18,8 +18,8 @@ Verify the final site by its full repository path, including script/style/font/G
 
 ## Publication status
 
-Version **2.0.0**, with vertical levels and throwable distractions, is published at **[https://oleg2v.github.io/GAMES-OTHERSELF/](https://oleg2v.github.io/GAMES-OTHERSELF/)**.
+Version **2.1.0**, with an analog touch joystick and round action controls, is published at **[https://oleg2v.github.io/GAMES-OTHERSELF/](https://oleg2v.github.io/GAMES-OTHERSELF/)**. It retains the vertical levels and throwable distractions introduced in version 2.0.
 
-[Workflow run 44289824012](https://github.com/Oleg2v/GAMES-OTHERSELF/actions/runs/44289824012) successfully built and deployed commit `dfc7a16` on `main` in 37 seconds. The deployment returned the public URL above. The release passed 36 Node tests and 55 distinct browser cases across targeted local runs; see [QA.md](QA.md) for the scope and evidence.
+[Workflow run 44293138815](https://github.com/Oleg2v/GAMES-OTHERSELF/actions/runs/44293138815) successfully built and deployed commit `bbbec42` on `main` in 49 seconds. The deployment returned the public URL above. This update passed 36 Node tests and 29 targeted browser cases, including real joystick movement and saved continuation in the production bundle. The earlier version 2.0 release passed its separate 55-case browser matrix; see [QA.md](QA.md) for the version-specific scope and evidence.
 
 The production build passed the local subpath browser check described in [QA.md](QA.md). Direct checks of the public site from this cloud environment are blocked by its outbound network policy before the request reaches GitHub Pages. Publication is confirmed by the successful GitHub deployment; a live public browser check is not claimed.
